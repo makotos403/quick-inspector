@@ -118,16 +118,18 @@ function stopPicking() {
 
 function onPickButton() {
   if (S.picking) stopPicking();
-  else {
-    closePopover();
-    startPicking();
-  }
+  else resumePicking();
 }
 
 function syncPickButton() {
   const b = S.nodes.pickBtn;
-  b.textContent = S.picking ? t("barPickStop") : t("barPick");
+  b.textContent = S.picking ? t("barStop") : t("barInspect");
   b.classList.toggle("qi-btn--active", S.picking);
+}
+
+function resumePicking() {
+  closePopover();
+  startPicking();
 }
 
 function onMove(e) {
@@ -163,8 +165,7 @@ function onKey(e) {
   if (e.key !== "Escape") return;
   e.stopPropagation();
   if (S.popover) {
-    closePopover();
-    startPicking();
+    resumePicking();
   } else if (S.picking) {
     stopPicking();
   } else {
@@ -230,7 +231,8 @@ function openPopover(el) {
       { class: "qi-pop__head", onpointerdown: startPopDrag },
       h("span", { class: "qi-pop__title", text: titleFor(data.header) }),
       h("span", { class: "qi-pop__dim", text: `${data.dims.width} × ${data.dims.height}` }),
-      h("button", { class: "qi-btn qi-btn--ghost", text: "✕", onclick: () => { closePopover(); startPicking(); } }),
+      h("button", { class: "qi-btn qi-btn--primary qi-pop__inspect", text: t("barInspect"), onclick: resumePicking }),
+      h("button", { class: "qi-btn qi-btn--ghost", title: t("barClose"), text: "✕", onclick: closePopover }),
     ),
     section(t("secSelector"), selectorRows(css, xpath)),
     section(t("secBox"), [boxModelView(data.boxModel)]),

@@ -8,10 +8,10 @@
   "actionTitle": {
     "message": "お手軽検証ツール — 要素をピック"
   },
-  "barPick": {
-    "message": "ピック"
+  "barInspect": {
+    "message": "検証"
   },
-  "barPickStop": {
+  "barStop": {
     "message": "停止"
   },
   "barCollapse": {

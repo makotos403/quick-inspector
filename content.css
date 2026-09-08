@@ -162,6 +162,16 @@
   color: #64748b;
   font-variant-numeric: tabular-nums;
 }
+.qi-pop__inspect {
+  min-width: 0;
+  padding: 5px 10px;
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+.qi-pop__inspect:hover {
+  background: #1d4ed8;
+}
 
 /* --- sections + rows -------------------------------------------- */
 

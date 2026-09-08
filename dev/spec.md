@@ -95,9 +95,10 @@
 ### 3.1 フローティングバー
 
 - 位置: 既定は右上。ドラッグで移動（座標は保持しない＝毎回既定位置で可）。
-- 中身（1行）: `[◉ ピッカー]` `[▸ 折りたたみ]` `[✕]`
-  - ピッカーボタン: ピッカーの開始 / 停止トグル。状態を色で表示。
-  - 折りたたみ: バーをアイコン1個サイズまで縮小。
+- 中身（1行）: `[検証 / 停止]` `[– 折りたたみ]` `[✕]`
+  - 検証ボタン: ピッカーの開始 / 停止トグル。起動中はラベル「停止」＋青くアクティブ表示。
+    （文言キー `barInspect` / `barStop`。「ピック」ではなくツール名と揃えて「検証」）
+  - 折りたたみ: バーを検証ボタン1個サイズまで縮小。
   - ✕: `teardown()`。
 - 幅は最小限（およそ 160px 未満）。
 
@@ -110,8 +111,8 @@
 - `click`（capture, `preventDefault` + `stopPropagation`）→ 選択確定、ホバー停止、
   ポップオーバー表示。
 - キー:
+  - ポップオーバー表示中の ESC → ポップオーバーを閉じて検証を再開。
   - ピッカー中の ESC → ピッカー停止（バーに戻る）。
-  - ポップオーバー表示中の ESC → ポップオーバーを閉じる。
   - それ以外の ESC / ✕ / アイコン再クリック → `teardown()`。
 - スコープ: トップドキュメントのみ。クロスオリジン iframe には入らない（制約として明記）。
 
@@ -120,7 +121,9 @@
 - `position: fixed`。選択要素の近くに出し、ビューポート内にクランプ。ドラッグ移動可。
 - セクション構成:
 
-  1. **ヘッダー**: `tag`、`#id`、`.class`（長い場合は省略）、`W × H px`。
+  1. **ヘッダー**: `tag`、`#id`、`.class`（長い場合は省略）、`W × H px`、
+     **`[検証]` ボタン**（ポップオーバーを閉じてピッカーを再開＝バーの検証ボタンと同機能）、
+     `[✕]`（閉じるだけ）。ヘッダーはドラッグで移動。
   2. **セレクタ**
      - CSS: `finder` で最短ユニークセレクタ。
      - XPath: 自前生成（§4.2）。
@@ -245,9 +248,10 @@
 - manifest: `_locales/{en,ja}/messages.json`（`chrome.i18n`）。
 - 拡張内 UI: **手動切替なし**なので `chrome.i18n.getMessage` で統一
   （`strings.<lang>.json` + 自作ローダは使わない）。content script でも `chrome.i18n` は使える。
-- 文言キー（暫定）: `appName`, `appDesc`, `actionTitle`, `barPick`, `barCollapse`,
-  `barClose`, `secSelector`, `secBox`, `secStyles`, `secColors`, `secStructure`,
-  `copyCssRule`, `toastCopied`, `xpath`, `css`, `rows`, `cols`, `items`, `depth` …
+- 文言キー: `appName`, `appDesc`, `actionTitle`, `barInspect`, `barStop`,
+  `barCollapse`, `barClose`, `secSelector`, `secBox`, `secStyles`, `secColors`,
+  `secStructure`, `copyRule`, `copied`, `labelCss`, `labelXpath`,
+  `structTable`, `structItems`, `structRepeat`, `structDepth`
 
 ---
 

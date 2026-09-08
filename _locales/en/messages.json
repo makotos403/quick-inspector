@@ -8,10 +8,10 @@
   "actionTitle": {
     "message": "Quick Inspector — pick an element"
   },
-  "barPick": {
-    "message": "Pick"
+  "barInspect": {
+    "message": "Inspect"
   },
-  "barPickStop": {
+  "barStop": {
     "message": "Stop"
   },
   "barCollapse": {
