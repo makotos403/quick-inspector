@@ -1,0 +1,76 @@
+{
+  "appName": {
+    "message": "Quick Inspector"
+  },
+  "appDesc": {
+    "message": "Inspect any element — selectors, box model, key styles — from a floating overlay, no DevTools needed. EN & JA."
+  },
+  "actionTitle": {
+    "message": "Quick Inspector — pick an element"
+  },
+  "barPick": {
+    "message": "Pick"
+  },
+  "barPickStop": {
+    "message": "Stop"
+  },
+  "barCollapse": {
+    "message": "Collapse"
+  },
+  "barClose": {
+    "message": "Close (Esc)"
+  },
+  "secSelector": {
+    "message": "Selector"
+  },
+  "secBox": {
+    "message": "Box model"
+  },
+  "secStyles": {
+    "message": "Key styles"
+  },
+  "secColors": {
+    "message": "Colors"
+  },
+  "secStructure": {
+    "message": "Structure"
+  },
+  "copyRule": {
+    "message": "Copy as CSS rule"
+  },
+  "copied": {
+    "message": "Copied"
+  },
+  "labelCss": {
+    "message": "CSS"
+  },
+  "labelXpath": {
+    "message": "XPath"
+  },
+  "structTable": {
+    "message": "$rows$ rows × $cols$ cols",
+    "placeholders": {
+      "rows": { "content": "$1" },
+      "cols": { "content": "$2" }
+    }
+  },
+  "structItems": {
+    "message": "$count$ items",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "structRepeat": {
+    "message": "$count$ × <$tag$>",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "tag": { "content": "$2" }
+    }
+  },
+  "structDepth": {
+    "message": "nesting depth $depth$",
+    "placeholders": {
+      "depth": { "content": "$1" }
+    }
+  }
+}

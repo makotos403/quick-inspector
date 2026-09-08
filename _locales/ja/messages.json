@@ -1,0 +1,76 @@
+{
+  "appName": {
+    "message": "お手軽検証ツール"
+  },
+  "appDesc": {
+    "message": "DevTools を開かずに、浮くオーバーレイから要素のセレクタ・box model・主要スタイルをその場で確認。英語・日本語対応。"
+  },
+  "actionTitle": {
+    "message": "お手軽検証ツール — 要素をピック"
+  },
+  "barPick": {
+    "message": "ピック"
+  },
+  "barPickStop": {
+    "message": "停止"
+  },
+  "barCollapse": {
+    "message": "折りたたむ"
+  },
+  "barClose": {
+    "message": "終了 (Esc)"
+  },
+  "secSelector": {
+    "message": "セレクタ"
+  },
+  "secBox": {
+    "message": "box model"
+  },
+  "secStyles": {
+    "message": "主要スタイル"
+  },
+  "secColors": {
+    "message": "色"
+  },
+  "secStructure": {
+    "message": "構造"
+  },
+  "copyRule": {
+    "message": "CSS ルールとしてコピー"
+  },
+  "copied": {
+    "message": "コピーしました"
+  },
+  "labelCss": {
+    "message": "CSS"
+  },
+  "labelXpath": {
+    "message": "XPath"
+  },
+  "structTable": {
+    "message": "$rows$ 行 × $cols$ 列",
+    "placeholders": {
+      "rows": { "content": "$1" },
+      "cols": { "content": "$2" }
+    }
+  },
+  "structItems": {
+    "message": "$count$ 項目",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "structRepeat": {
+    "message": "$count$ × <$tag$>",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "tag": { "content": "$2" }
+    }
+  },
+  "structDepth": {
+    "message": "ネスト深さ $depth$",
+    "placeholders": {
+      "depth": { "content": "$1" }
+    }
+  }
+}

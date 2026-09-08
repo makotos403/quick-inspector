@@ -1,0 +1,7 @@
+# store submission packages
+*.zip
+# OS cruft
+.DS_Store
+Thumbs.db
+# node
+node_modules/
