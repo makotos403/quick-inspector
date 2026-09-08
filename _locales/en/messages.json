@@ -14,11 +14,17 @@
   "barStop": {
     "message": "Stop"
   },
-  "barCollapse": {
+  "panelCollapse": {
     "message": "Collapse"
   },
-  "barClose": {
+  "panelClose": {
     "message": "Close (Esc)"
+  },
+  "hintPicking": {
+    "message": "Hover an element, then click to inspect it."
+  },
+  "hintIdle": {
+    "message": "Press Inspect, then click any element on the page."
   },
   "secSelector": {
     "message": "Selector"

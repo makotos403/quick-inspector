@@ -1,9 +1,10 @@
 /**
- * content.js — the whole in-page UI (ES module, loaded by bootstrap.js).
+ * content.js — the in-page UI (ES module, loaded by bootstrap.js).
  *
- * Everything lives inside a closed shadow root on a single fixed host element,
- * so the page's CSS can't reach in and our CSS can't leak out. The page DOM
- * gains exactly one node (the host); nothing here reflows the page.
+ * One draggable panel lives inside a closed shadow root on a single fixed host
+ * element. Collapsed it is a small handle; expanded it shows the Inspect toggle
+ * and the inspection result. The page DOM gains exactly one node (the host) and
+ * nothing here reflows the page.
  *
  * Exported `toggle()` flips the tool on and off — bootstrap.js calls it on
  * every toolbar click, and the module stays cached between clicks.
@@ -12,13 +13,11 @@
 import { buildCssSelector, buildXPath } from "./selectors.js";
 import { inspect } from "./inspect.js";
 import { toCssRule } from "./cssrule.js";
+import { h, renderModel, renderMessage } from "./render.js";
 
 const HOST_ID = "quick-inspector-host";
 const t = (key, subs) => chrome.i18n.getMessage(key, subs) || key;
 
-/** @type {null | { host: HTMLElement, root: ShadowRoot, picking: boolean,
- *   selected: Element|null, hover: Element|null, popover: HTMLElement|null,
- *   nodes: Record<string, HTMLElement>, listeners: Array<[EventTarget, string, Function, any]> }} */
 let S = null;
 
 export function toggle() {
@@ -26,7 +25,7 @@ export function toggle() {
   else activate();
 }
 
-// --- lifecycle --------------------------------------------------------------
+// --- lifecycle -----------------------------------------------------------
 
 async function activate() {
   const host = document.createElement("div");
@@ -37,11 +36,22 @@ async function activate() {
   const root = host.attachShadow({ mode: "closed" });
   document.documentElement.appendChild(host);
 
-  S = { host, root, picking: false, selected: null, hover: null, popover: null, moveRaf: 0, nodes: {}, listeners: [] };
+  S = {
+    host,
+    root,
+    expanded: true,
+    picking: false,
+    selected: null,
+    model: null,
+    hover: null,
+    moveRaf: 0,
+    nodes: {},
+    listeners: [],
+  };
 
   await injectStyles(root);
   buildOverlay(root);
-  buildBar(root);
+  buildPanel(root);
   bindGlobalListeners();
   startPicking();
 }
@@ -62,12 +72,12 @@ async function injectStyles(root) {
     const res = await fetch(chrome.runtime.getURL("content.css"));
     style.textContent = await res.text();
   } catch {
-    style.textContent = ":host{all:initial}"; // page still usable if fetch fails
+    style.textContent = ":host{all:initial}";
   }
   root.appendChild(style);
 }
 
-// --- overlay + bar ---------------------------------------------------------
+// --- panel + overlay ---------------------------------------------------
 
 function buildOverlay(root) {
   const highlight = h("div", { class: "qi-highlight" });
@@ -77,65 +87,137 @@ function buildOverlay(root) {
   S.nodes.label = label;
 }
 
-function buildBar(root) {
-  const pick = h("button", { class: "qi-btn qi-btn--primary", onclick: onPickButton });
-  const collapse = h("button", { class: "qi-btn qi-btn--collapse", title: t("barCollapse"), onclick: onCollapse, text: "–" });
-  const close = h("button", { class: "qi-btn", title: t("barClose"), onclick: teardown, text: "✕" });
+function buildPanel(root) {
+  const inspectBtn = h("button", {
+    class: "qi-btn qi-btn--primary qi-inspect",
+    onclick: onInspectToggle,
+  });
+  const collapseBtn = h("button", {
+    class: "qi-btn qi-btn--ghost qi-head-btn",
+    title: t("panelCollapse"),
+    text: "–",
+    onclick: () => setExpanded(false),
+  });
+  const closeBtn = h("button", {
+    class: "qi-btn qi-btn--ghost qi-head-btn",
+    title: t("panelClose"),
+    text: "✕",
+    onclick: teardown,
+  });
 
-  const bar = h(
+  const head = h(
     "div",
-    { class: "qi-bar" },
-    h("span", { class: "qi-bar__grip", onpointerdown: startBarDrag }),
-    pick,
-    collapse,
-    close,
+    { class: "qi-panel__head", onpointerdown: onHeadPointerDown },
+    h(
+      "span",
+      { class: "qi-brand" },
+      h("span", { class: "qi-brand__mark", text: "🔍" }),
+      h("span", { class: "qi-brand__name", text: t("barInspect") }),
+    ),
+    inspectBtn,
+    h("span", { class: "qi-spacer" }),
+    collapseBtn,
+    closeBtn,
   );
-  root.append(bar);
-  S.nodes.bar = bar;
-  S.nodes.pickBtn = pick;
-  S.nodes.collapseBtn = collapse;
-  syncPickButton();
+  const body = h("div", { class: "qi-panel__body" });
+  const panel = h("div", { class: "qi-panel" }, head, body);
+  root.append(panel);
+
+  S.nodes.panel = panel;
+  S.nodes.body = body;
+  S.nodes.inspectBtn = inspectBtn;
+
+  setExpanded(true);
+  syncInspectBtn();
 }
 
-function onCollapse() {
-  const collapsed = S.nodes.bar.classList.toggle("qi-bar--collapsed");
-  S.nodes.collapseBtn.textContent = collapsed ? "+" : "–";
+function setExpanded(on) {
+  S.expanded = on;
+  S.nodes.panel.classList.toggle("qi-panel--collapsed", !on);
+  if (!on) {
+    stopPicking();
+  } else {
+    renderBody();
+  }
 }
 
-// --- picking --------------------------------------------------------------
+function renderBody() {
+  if (!S.expanded) return;
+  if (S.selected && S.model) {
+    renderModel(S.nodes.body, S.model, copy);
+  } else {
+    renderMessage(S.nodes.body, S.picking ? t("hintPicking") : t("hintIdle"));
+  }
+}
+
+// --- picking ---------------------------------------------------------
+
+function onInspectToggle() {
+  if (S.picking) stopPicking();
+  else startPicking();
+}
 
 function startPicking() {
   S.picking = true;
-  syncPickButton();
+  S.selected = null;
+  S.model = null;
+  syncInspectBtn();
+  renderBody();
 }
 
 function stopPicking() {
   S.picking = false;
   S.hover = null;
   hideHighlight();
-  syncPickButton();
+  syncInspectBtn();
+  renderBody();
 }
 
-function onPickButton() {
-  if (S.picking) stopPicking();
-  else resumePicking();
-}
-
-function syncPickButton() {
-  const b = S.nodes.pickBtn;
+function syncInspectBtn() {
+  const b = S.nodes.inspectBtn;
   b.textContent = S.picking ? t("barStop") : t("barInspect");
   b.classList.toggle("qi-btn--active", S.picking);
 }
 
-function resumePicking() {
-  closePopover();
-  startPicking();
+function select(el) {
+  S.selected = el;
+  S.model = buildModel(el);
+  S.picking = false;
+  S.hover = null;
+  syncInspectBtn();
+  positionHighlight(el);
+  S.nodes.label.classList.remove("qi-label--on");
+  if (!S.expanded) setExpanded(true);
+  else renderBody();
+}
+
+function buildModel(el) {
+  const data = inspect(el, window);
+  const css = buildCssSelector(el, document);
+  return {
+    header: data.header,
+    dims: data.dims,
+    boxModel: data.boxModel,
+    keyStyles: data.keyStyles,
+    colors: data.colors,
+    counts: data.counts,
+    selectors: { css, xpath: buildXPath(el, document) },
+    cssRule: toCssRule(css, data.keyStyles),
+  };
+}
+
+// --- events --------------------------------------------------------
+
+function bindGlobalListeners() {
+  add(document, "mousemove", onMove, true);
+  add(document, "click", onClick, true);
+  add(window, "keydown", onKey, true);
+  add(window, "scroll", onScrollOrResize, true);
+  add(window, "resize", onScrollOrResize, true);
 }
 
 function onMove(e) {
-  if (!S.picking) return;
-  // Throttle the hit-test + layout reads to one per frame.
-  if (S.moveRaf) return;
+  if (!S.picking || S.moveRaf) return;
   const { clientX: x, clientY: y } = e;
   S.moveRaf = requestAnimationFrame(() => {
     S.moveRaf = 0;
@@ -154,7 +236,7 @@ function onMove(e) {
 
 function onClick(e) {
   if (!S.picking) return;
-  if (e.composedPath().includes(S.host)) return; // let our own buttons work
+  if (e.composedPath().includes(S.host)) return; // our own controls
   e.preventDefault();
   e.stopPropagation();
   const el = elementUnder(e.clientX, e.clientY) || e.target;
@@ -164,10 +246,13 @@ function onClick(e) {
 function onKey(e) {
   if (e.key !== "Escape") return;
   e.stopPropagation();
-  if (S.popover) {
-    resumePicking();
-  } else if (S.picking) {
+  if (S.picking) {
     stopPicking();
+  } else if (S.selected) {
+    S.selected = null;
+    S.model = null;
+    hideHighlight();
+    renderBody();
   } else {
     teardown();
   }
@@ -178,15 +263,7 @@ function onScrollOrResize() {
   if (el) positionHighlight(el);
 }
 
-function select(el) {
-  S.selected = el;
-  stopPicking();
-  positionHighlight(el);
-  S.nodes.label.classList.remove("qi-label--on");
-  openPopover(el);
-}
-
-// --- highlight ----------------------------------------------------------
+// --- highlight -----------------------------------------------------
 
 function positionHighlight(el) {
   const r = el.getBoundingClientRect();
@@ -206,7 +283,9 @@ function hideHighlight() {
 
 function positionLabel(el, x, y) {
   const label = S.nodes.label;
-  const cls = el.classList.length ? "." + Array.from(el.classList).slice(0, 2).join(".") : "";
+  const cls = el.classList.length
+    ? "." + Array.from(el.classList).slice(0, 2).join(".")
+    : "";
   const id = el.id ? `#${el.id}` : "";
   const r = el.getBoundingClientRect();
   label.textContent = `${el.localName}${id}${cls}  ${Math.round(r.width)}×${Math.round(r.height)}`;
@@ -215,170 +294,21 @@ function positionLabel(el, x, y) {
   label.style.top = `${Math.max(y - 28, 4)}px`;
 }
 
-// --- popover ----------------------------------------------------------
+// --- dragging -----------------------------------------------------
 
-function openPopover(el) {
-  closePopover();
-  const data = inspect(el, window);
-  const css = buildCssSelector(el, document);
-  const xpath = buildXPath(el, document);
-
-  const pop = h(
-    "div",
-    { class: "qi-pop" },
-    h(
-      "div",
-      { class: "qi-pop__head", onpointerdown: startPopDrag },
-      h("span", { class: "qi-pop__title", text: titleFor(data.header) }),
-      h("span", { class: "qi-pop__dim", text: `${data.dims.width} × ${data.dims.height}` }),
-      h("button", { class: "qi-btn qi-btn--primary qi-pop__inspect", text: t("barInspect"), onclick: resumePicking }),
-      h("button", { class: "qi-btn qi-btn--ghost", title: t("barClose"), text: "✕", onclick: closePopover }),
-    ),
-    section(t("secSelector"), selectorRows(css, xpath)),
-    section(t("secBox"), [boxModelView(data.boxModel)]),
-    section(t("secStyles"), [stylesView(css, data.keyStyles)]),
-    section(t("secColors"), [colorsView(data.colors)]),
-    section(t("secStructure"), [structureView(data.counts)]),
-  );
-
-  S.root.append(pop);
-  S.popover = pop;
-  placePopover(pop, el);
-}
-
-function closePopover() {
-  if (S.popover) {
-    S.popover.remove();
-    S.popover = null;
+function onHeadPointerDown(e) {
+  if (e.target.closest("button")) return;
+  if (!S.expanded) {
+    setExpanded(true);
+    return;
   }
-}
-
-function placePopover(pop, el) {
-  const r = el.getBoundingClientRect();
-  const pw = pop.offsetWidth;
-  const ph = pop.offsetHeight;
-  let left = r.right + 12;
-  if (left + pw > window.innerWidth - 8) left = Math.max(8, r.left - pw - 12);
-  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
-  let top = r.top;
-  if (top + ph > window.innerHeight - 8) top = Math.max(8, window.innerHeight - ph - 8);
-  pop.style.left = `${Math.max(8, left)}px`;
-  pop.style.top = `${Math.max(8, top)}px`;
-}
-
-// --- popover sections -------------------------------------------------
-
-function section(name, children) {
-  return h("div", { class: "qi-sec" }, h("div", { class: "qi-sec__h", text: name }), ...children);
-}
-
-function selectorRows(css, xpath) {
-  return [
-    copyRow(t("labelCss"), css),
-    copyRow(t("labelXpath"), xpath),
-  ];
-}
-
-function copyRow(label, value) {
-  const row = h(
-    "div",
-    { class: "qi-row qi-row--copy", title: value, onclick: () => copy(value) },
-    h("span", { class: "qi-row__k", text: label }),
-    h("code", { class: "qi-row__v", text: value || "—" }),
-    h("span", { class: "qi-row__copy", text: "⧉" }),
-  );
-  return row;
-}
-
-function boxModelView(bm) {
-  const q = (n) => (n === 0 ? "0" : String(n));
-  const layer = (cls, box, inner) =>
-    h(
-      "div",
-      { class: `qi-box qi-box--${cls}` },
-      h("span", { class: "qi-box__t", text: q(box.top) }),
-      h("span", { class: "qi-box__r", text: q(box.right) }),
-      h("span", { class: "qi-box__b", text: q(box.bottom) }),
-      h("span", { class: "qi-box__l", text: q(box.left) }),
-      inner,
-    );
-  const content = h("div", { class: "qi-box qi-box--content", text: `${bm.content.width}×${bm.content.height}` });
-  return layer("margin", bm.margin, layer("border", bm.border, layer("padding", bm.padding, content)));
-}
-
-function stylesView(css, keyStyles) {
-  const table = h(
-    "div",
-    { class: "qi-styles" },
-    ...keyStyles.map(({ prop, value }) =>
-      h("div", { class: "qi-row" },
-        h("span", { class: "qi-row__k", text: prop }),
-        h("code", { class: "qi-row__v", text: value }),
-      ),
-    ),
-  );
-  const btn = h("button", {
-    class: "qi-btn qi-btn--wide",
-    text: t("copyRule"),
-    onclick: () => copy(toCssRule(css, keyStyles)),
-  });
-  return h("div", {}, table, btn);
-}
-
-function colorsView(colors) {
-  const chip = (name, info) => {
-    if (info.transparent && !info.hex) {
-      return h("div", { class: "qi-chip qi-chip--empty" },
-        h("span", { class: "qi-chip__sw" }),
-        h("span", { class: "qi-chip__k", text: name }),
-        h("code", { class: "qi-chip__v", text: info.value }),
-      );
-    }
-    const sw = h("span", { class: "qi-chip__sw" });
-    sw.style.background = info.value;
-    return h(
-      "div",
-      { class: "qi-chip", title: info.hex || info.value, onclick: () => copy(info.hex || info.value) },
-      sw,
-      h("span", { class: "qi-chip__k", text: name }),
-      h("code", { class: "qi-chip__v", text: info.hex || info.value }),
-    );
-  };
-  return h("div", { class: "qi-chips" },
-    chip("color", colors.color),
-    chip("background", colors.backgroundColor),
-    chip("border", colors.borderColor),
-  );
-}
-
-function structureView(c) {
-  const parts = [];
-  if (c.kind === "table") parts.push(t("structTable", [String(c.rows), String(c.cols)]));
-  else if (c.kind === "list") parts.push(t("structItems", [String(c.items)]));
-  else if (c.kind === "repeat") parts.push(t("structRepeat", [String(c.repeat.count), c.repeat.tag]));
-  parts.push(t("structDepth", [String(c.depth)]));
-  return h("div", { class: "qi-struct", text: parts.join("  ·  ") });
-}
-
-function titleFor(header) {
-  const cls = header.classes.length ? "." + header.classes.slice(0, 3).join(".") : "";
-  return `${header.tag}${header.id ? "#" + header.id : ""}${cls}`;
-}
-
-// --- dragging -----------------------------------------------------------
-
-function startBarDrag(e) {
-  dragElement(e, S.nodes.bar);
-}
-function startPopDrag(e) {
-  if (e.target.closest(".qi-btn")) return;
-  dragElement(e, S.popover);
-}
-function dragElement(e, node) {
-  e.preventDefault();
+  const node = S.nodes.panel;
   const rect = node.getBoundingClientRect();
   const dx = e.clientX - rect.left;
   const dy = e.clientY - rect.top;
+  // Pin to left/top at the current spot (no jump) before switching off `right`.
+  node.style.left = `${rect.left}px`;
+  node.style.top = `${rect.top}px`;
   node.style.right = "auto";
   const move = (ev) => {
     node.style.left = `${Math.max(0, ev.clientX - dx)}px`;
@@ -392,15 +322,7 @@ function dragElement(e, node) {
   window.addEventListener("pointerup", up, true);
 }
 
-// --- helpers ----------------------------------------------------------
-
-function bindGlobalListeners() {
-  add(document, "mousemove", onMove, true);
-  add(document, "click", onClick, true);
-  add(window, "keydown", onKey, true);
-  add(window, "scroll", onScrollOrResize, true);
-  add(window, "resize", onScrollOrResize, true);
-}
+// --- helpers ----------------------------------------------------
 
 function add(target, type, fn, opts) {
   target.addEventListener(type, fn, opts);
@@ -440,16 +362,4 @@ function toast() {
   el.classList.add("qi-toast--on");
   clearTimeout(el._timer);
   el._timer = setTimeout(() => el.classList.remove("qi-toast--on"), 1200);
-}
-
-function h(tag, props = {}, ...kids) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(props)) {
-    if (k === "class") el.className = v;
-    else if (k === "text") el.textContent = v;
-    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
-    else if (v != null) el.setAttribute(k, v);
-  }
-  for (const kid of kids) if (kid != null) el.append(kid);
-  return el;
 }

@@ -14,11 +14,17 @@
   "barStop": {
     "message": "停止"
   },
-  "barCollapse": {
+  "panelCollapse": {
     "message": "折りたたむ"
   },
-  "barClose": {
+  "panelClose": {
     "message": "終了 (Esc)"
+  },
+  "hintPicking": {
+    "message": "要素にカーソルを合わせ、クリックで検証します。"
+  },
+  "hintIdle": {
+    "message": "「検証」を押して、ページ上の要素をクリックしてください。"
   },
   "secSelector": {
     "message": "セレクタ"

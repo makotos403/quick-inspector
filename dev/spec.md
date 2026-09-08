@@ -7,10 +7,18 @@
 - **表示名**: `Quick Inspector`（EN） / `お手軽検証ツール`（JA）
 - **フォルダ / リポジトリ**: `quick-inspector`（`github.com/makotos403/quick-inspector`, Public, `main`）
 - **形態**: Chrome 拡張（Manifest V3）
-- **状態**: MVP スキャフォールド完了（2026-09-08）。`chrome://extensions` で読み込み可能。
-  次は実機での動作確認 → アイコンを Gemini で本番化 → コミット/公開
+- **状態**: Phase 1（統合パネル）実装済み（2026-09-08）。`chrome://extensions` で読み込み可能。
+  次は実機確認 → Phase 2（独立ウィンドウ切り出し）→ アイコン本番化 → 公開
 - 元アイデア: [../../IDEAS.md](../../IDEAS.md) 「ページ解剖ピッカー拡張」
 - 構成規約: [../../CONVENTIONS.md](../../CONVENTIONS.md)
+
+### UI の変遷
+
+- 当初: 画面隅の1行バー ＋ 選択時に別ポップオーバー（案 A）。
+- **現行（Phase 1）**: バーとポップオーバーを**1つの折りたたみ式縦パネル**に統合。
+  検証トグルはパネルヘッダーの1箇所だけ。描画は `render.js` に分離。
+- **Phase 2**: パネルを `chrome.windows.create` で**ブラウザ外の独立ウィンドウ**に
+  切り出せるようにする（IDEAS 案 C）。切り出し中はページ側に小ハンドルだけ残す。
 
 ---
 
@@ -20,10 +28,10 @@
 
 | 機能 | 内容 |
 |---|---|
-| 起動 | ツールバーアイコンのクリックで `activeTab` に注入。もう一度クリックで終了 |
-| フローティングバー | 画面隅に浮く1行バー。ドラッグ移動可・折りたたみ可・× で終了 |
-| ピッカー | ホバーでハイライト＋タグ名ラベル、クリックで選択 |
-| セレクタ | CSS（`finder` 使用）＋ XPath（自前）。行クリックでコピー |
+| 起動 | ツールバーアイコンのクリックで注入。展開＋検証 ON で出る。もう一度クリックで終了 |
+| 統合パネル | 画面隅に浮く1枚の縦パネル。ドラッグ移動可・折りたたみ（ハンドル化）可・✕ で終了 |
+| ピッカー | ホバーでハイライト＋タグ名ラベル、クリックで選択。ヘッダーの `[検証]` トグルで開始/停止 |
+| セレクタ | CSS（自前・§4.2）＋ XPath（自前）。行クリックでコピー |
 | 要素情報 | タグ / `#id` / `.class` / 実寸 `W×H px` |
 | box model 図 | margin / border / padding / content の実測値を入れ子図で |
 | 主要プロパティ抜粋 | 計算済みスタイルから約20項目をキュレートして表示（全 computed は出さない） |
@@ -36,7 +44,6 @@
 
 - 画像 / サムネ取得・ダウンロード（`downloads` / `contextMenus` 権限が必要になる）
 - 別ドメイン iframe プレーヤーの URL 再構築（YouTube 等）
-- 結果を別ウィンドウに出す形態（IDEAS の案 C。`chrome.windows.create` + messaging）
 - 右クリックメニューからの起動
 - full-path セレクタ / XPath⇔CSS 切替 / 選択履歴 / 複数選択の比較
 - options ページ、UI 言語の手動切替
@@ -60,7 +67,7 @@
      権限警告を出さない（host 権限が付かないため）。
 3. `bootstrap.js`（classic・極小）が動的 `import(chrome.runtime.getURL("content.js"))` を実行。
    - これで `content.js` 以下を **ES モジュールとして**読み込める（`export` / `import` が使える）。
-   - `content.js` / `selectors.js` / `inspect.js` / `cssrule.js` / `finder.js` / `content.css` は
+   - `content.js` / `render.js` / `selectors.js` / `inspect.js` / `cssrule.js` / `content.css` は
      `web_accessible_resources` に登録。
 4. `content.js` は二重ロードをガード（`window.__quickInspector`）。
    - 未ロード → UI を構築してピッカー開始。
@@ -84,62 +91,72 @@
 
 ### 2.3 ページを一切リフローさせない
 
-- バー・ハイライト・ポップオーバーはすべて `position: fixed`。
+- パネル・ハイライト・ラベルはすべて `position: fixed`。
 - ページの DOM には**ホスト要素1個だけ**を足す（レイアウトに影響しない配置）。
 - 終了時にホスト要素とイベントリスナを完全撤去。痕跡を残さない。
+
+### 2.4 描画ロジックの分離（`render.js`）
+
+- パネル本体（title / セレクタ / box model / スタイル / 色 / 構造）の DOM 生成は
+  `render.js` に隔離。**プレーンな `model` オブジェクトだけ**を受け取り、
+  `selectors.js` / `inspect.js` / `cssrule.js` に一切依存しない。
+- `content.js` が `buildModel(el)` で `inspect()` ＋ セレクタ ＋ `toCssRule()` を
+  1つの `model` にまとめ、`render.js` に渡す。
+- 狙い: Phase 2 の独立ウィンドウ（`panel.js`）が、messaging で受け取った `model` を
+  同じ `render.js` でそのまま描ける。
 
 ---
 
 ## 3. コンポーネント仕様
 
-### 3.1 フローティングバー
+### 3.1 統合パネル
 
-- 位置: 既定は右上。ドラッグで移動（座標は保持しない＝毎回既定位置で可）。
-- 中身（1行）: `[検証 / 停止]` `[– 折りたたみ]` `[✕]`
-  - 検証ボタン: ピッカーの開始 / 停止トグル。起動中はラベル「停止」＋青くアクティブ表示。
-    （文言キー `barInspect` / `barStop`。「ピック」ではなくツール名と揃えて「検証」）
-  - 折りたたみ: バーを検証ボタン1個サイズまで縮小。
-  - ✕: `teardown()`。
-- 幅は最小限（およそ 160px 未満）。
+- `position: fixed`、既定は右上。ヘッダーをドラッグで移動（座標は保持しない）。
+- **展開時**のヘッダー: `[🔍]` `[検証 / 停止]` … `[– 折りたたみ]` `[✕]`
+  - 検証トグル: ピッカーの開始 / 停止。起動中はラベル「停止」＋青くアクティブ表示。
+    文言キー `barInspect` / `barStop`（「ピック」ではなくツール名と揃えて「検証」）。
+  - `–`: パネルを折りたたむ（→ ハンドル化）。折りたたむと検証も停止。
+  - `✕`: `teardown()`。
+- **折りたたみ時**: `[🔍 検証]` の小ハンドルのみ。クリック（＝ヘッダー押下）で展開。
+- **本体**（展開時のみ）:
+  - 未選択 → ヒント文（`hintPicking` / `hintIdle` を状態で出し分け）。
+  - 選択済み → `render.js` が §3.3 のセクションを描画。
+- 幅は展開 324px / 折りたたみは内容なり。`max-height: 82vh`、本体はスクロール。
+- 起動直後は **展開＋検証 ON**（ヒント文を表示した状態でピッカー稼働）。
 
 ### 3.2 ピッカー
 
 - `mousemove`（capture, rAF スロットル）→ `document.elementFromPoint` でヒット要素を取得。
+  自ホスト（`composedPath` に含まれる場合）・`documentElement` は無視。
 - ハイライト: 対象の bounding rect に沿ったアウトライン枠（`fixed`）＋薄い塗り。
-  スクロール・リサイズで追従（rAF）。
-- カーソル近傍に小ラベル: `div.card` のように `tag.class#id`（省略表示）と `W×H`。
-- `click`（capture, `preventDefault` + `stopPropagation`）→ 選択確定、ホバー停止、
-  ポップオーバー表示。
-- キー:
-  - ポップオーバー表示中の ESC → ポップオーバーを閉じて検証を再開。
-  - ピッカー中の ESC → ピッカー停止（バーに戻る）。
-  - それ以外の ESC / ✕ / アイコン再クリック → `teardown()`。
+  スクロール・リサイズで追従。
+- カーソル近傍に小ラベル: `tag#id.class`（省略表示）と `W×H`。
+- `click`（capture, `preventDefault` + `stopPropagation`）→ 選択確定・ホバー停止・
+  本体に結果描画。折りたたみ中なら展開する。
+- キー（ESC）:
+  - ピッカー中 → 停止。
+  - 選択結果あり → 結果をクリアしてヒントに戻す。
+  - どちらでもない → `teardown()`。
 - スコープ: トップドキュメントのみ。クロスオリジン iframe には入らない（制約として明記）。
 
-### 3.3 ポップオーバー
+### 3.3 パネル本体のセクション（`render.js`）
 
-- `position: fixed`。選択要素の近くに出し、ビューポート内にクランプ。ドラッグ移動可。
-- セクション構成:
+`model`（§2.4）から生成。コピーはすべて `content.js` の `copy()` にコールバック。
 
-  1. **ヘッダー**: `tag`、`#id`、`.class`（長い場合は省略）、`W × H px`、
-     **`[検証]` ボタン**（ポップオーバーを閉じてピッカーを再開＝バーの検証ボタンと同機能）、
-     `[✕]`（閉じるだけ）。ヘッダーはドラッグで移動。
-  2. **セレクタ**
-     - CSS: `finder` で最短ユニークセレクタ。
-     - XPath: 自前生成（§4.2）。
-     - 各行 = 等幅テキスト＋コピーボタン。行クリックでもコピー。
+  1. **title 行**: `tag#id.class`（省略）＋ `W × H`。
+  2. **セレクタ**: CSS（自前・§4.2）／ XPath（自前）。行クリックでコピー。
   3. **box model 図**: CSS で描く入れ子ボックス。margin / border / padding は
      4辺の px、content は `w × h`。0 の辺は淡色表示。
-  4. **主要プロパティ**（計算済み・§4.3 の固定リスト）: `key: value` の表。
-     `[CSS ルールとしてコピー]` ボタン → §4.4 の文字列を生成しコピー。
+  4. **主要スタイル**（計算済み・§4.3 の固定リスト）: `key: value` の表。
+     `[CSS ルールとしてコピー]` ボタン → `model.cssRule`（§4.4）をコピー。
   5. **色**: `color` / `background-color` / `border-color` の色見本チップ＋
      HEX（アルファがあれば `#RRGGBBAA` / それ以外 `#RRGGBB`）。チップクリックで HEX コピー。
-     透明・none の場合はチップをグレーアウト。
-  6. **構造・件数**（§4.5）: 該当するものだけ表示。
-     - `<table>` → `N 行 × M 列`（`thead`/`tbody` 合算、最大列数）
+     透明・none はチップをグレーアウト。
+  6. **構造・件数**（§4.5）: 該当するものだけ。
+     - `<table>` → `N 行 × M 列`（全 `tr` / 最大セル数）
      - `<ul>` / `<ol>` → `N 項目`（直下 `<li>` 数）
      - 直下に同一タグの子が3個以上 → `N × <tag>`
-     - `ネスト深さ: D`（選択要素を根とした最大子孫深さ）
+     - `ネスト深さ D`（選択要素を根とした最大子孫深さ）
 - コピー時トースト: `コピーしました` / `Copied`（言語で出し分け）。
 
 ---
@@ -203,6 +220,21 @@
 - `countStructure(el) -> { kind, rows?, cols?, items?, repeat?, depth }`
 - `depth`: 幅優先で最大子孫深さ（上限 50 でカット）。
 
+### 4.6 `render.js`（描画・ロジック依存なし）
+
+- `h(tag, props, ...kids)`: 共有 hyperscript ヘルパー（`content.js` からも import）。
+- `renderModel(container, model, onCopy)`: §3.3 のセクションを `container` に生成。
+- `renderMessage(container, text)`: ヒント1行だけ表示。
+- `model` の形（シリアライズ可能・messaging で送れる）:
+  ```
+  { header:{tag,id,classes[],text}, dims:{width,height},
+    selectors:{css,xpath}, boxModel:{margin,border,padding:{top,right,bottom,left},
+    content:{width,height}}, keyStyles:[{prop,value}],
+    colors:{color,backgroundColor,borderColor:{value,hex,transparent}},
+    counts:{kind,rows?,cols?,items?,repeat?,depth}, cssRule:string }
+  ```
+- `render.js` は `chrome.i18n` のみ使用。`selectors/inspect/cssrule` は import しない。
+
 ---
 
 ## 5. manifest.json
@@ -223,8 +255,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "content.js", "selectors.js", "inspect.js", "cssrule.js",
-        "finder.js", "content.css"
+        "content.js", "render.js", "selectors.js", "inspect.js",
+        "cssrule.js", "content.css"
       ],
       "matches": ["<all_urls>"]
     }
@@ -249,8 +281,9 @@
 - 拡張内 UI: **手動切替なし**なので `chrome.i18n.getMessage` で統一
   （`strings.<lang>.json` + 自作ローダは使わない）。content script でも `chrome.i18n` は使える。
 - 文言キー: `appName`, `appDesc`, `actionTitle`, `barInspect`, `barStop`,
-  `barCollapse`, `barClose`, `secSelector`, `secBox`, `secStyles`, `secColors`,
-  `secStructure`, `copyRule`, `copied`, `labelCss`, `labelXpath`,
+  `panelCollapse`, `panelClose`, `hintPicking`, `hintIdle`,
+  `secSelector`, `secBox`, `secStyles`, `secColors`, `secStructure`,
+  `copyRule`, `copied`, `labelCss`, `labelXpath`,
   `structTable`, `structItems`, `structRepeat`, `structDepth`
 
 ---
@@ -262,8 +295,9 @@ quick-inspector/
 ├── manifest.json
 ├── background.js          # action.onClicked → bootstrap.js を注入（classic）
 ├── bootstrap.js           # 極小・classic。import(content.js) するだけ
-├── content.js             # バー・ピッカー・ポップオーバー・shadow DOM UI（ESM）
+├── content.js             # 統合パネル・ピッカー・shadow DOM UI（ESM）
 ├── content.css            # shadow root に流し込む UI スタイル
+├── render.js              # パネル本体の DOM 生成（model → DOM。ロジック依存なし）
 ├── selectors.js           # buildCssSelector / buildXPath（純粋）
 ├── inspect.js             # inspect / countStructure / rgbToHex / collapseBox（純粋）
 ├── cssrule.js             # toCssRule（純粋）
@@ -285,10 +319,11 @@ quick-inspector/
     └── cssrule.test.mjs
 ```
 
-- 共有モジュール3個（`selectors` `inspect` `cssrule`）→ フラット維持（§3: 5個以上で `lib/`）。
+- 共有モジュール4個（`render` `selectors` `inspect` `cssrule`）→ フラット維持（§3: 5個以上で `lib/`）。
+  Phase 2 で `panel.*` が増えると 5 個目。そこで `lib/` 化を検討。
 - `content.css` は shadow DOM 注入用。実ファイルにして `fetch` で読む。
 - `web_accessible_resources`: `bootstrap.js` は不要（`executeScript` で注入するため）。
-  `content.js` `selectors.js` `inspect.js` `cssrule.js` `content.css` を登録。
+  `content.js` `render.js` `selectors.js` `inspect.js` `cssrule.js` `content.css` を登録。
 - テスト実行: `node --test "dev/*.test.mjs"`（Node 24 / 全15ケース green）。
 
 ---
@@ -328,16 +363,37 @@ quick-inspector/
 
 ---
 
-## 11. リリース計画
+## 11. Phase 2 — 独立ウィンドウ切り出し
 
-- `v0.1.0`: 内部動作確認（未公開）。
-- `v1.0.0`: ストア申請（[CONVENTIONS.md](../../CONVENTIONS.md) §10）。カテゴリ =
-  Developer Tools、公開レベルは申請時に決定。
-- v2 候補は §1「MVP に入れない」を参照。
+パネルヘッダーに `[↗]` を追加し、`chrome.windows.create({ type: "popup" })` で
+`panel.html` を開く。対象ページを1pxも覆わなくなる（当初の動機に一番忠実）。
+
+- **新規ファイル**: `panel.html` / `panel.js` / `panel.css`。
+- **描画**: `panel.js` は `render.js` をそのまま使う（§2.4 の狙い）。
+- **messaging**: `content.js`（ピッカー・`model` 生成）↔ `background.js`（tabId 中継）↔
+  `panel.js`。ポップアップは開いた元タブに束縛。
+  - `panel.js` の `[検証]` → content.js に「ピッカー開始」を送る。
+  - content.js が select したら `model` を panel.js へ送って描画。
+- **ページ側**: 切り出し中はパネルを小ハンドルだけに（クリックでウィンドウを前面へ、
+  再度でページ内表示に戻す）。
+- **状態遷移**: ポップアップを閉じる / 元タブを閉じる・遷移する → ページ内パネルに戻る。
+- 追加権限は不要（`chrome.windows` はパーミッション不要、`panel.html` は同梱ページ）。
+- テスト: `render.js` の描画は `panel.js` 経由でも同じなので追加ユニットテストは
+  `render` のスナップショット程度。messaging 配線は実機確認。
 
 ---
 
-## 12. GitHub リポジトリ
+## 12. リリース計画
+
+- `v0.1.0`: Phase 1（統合パネル）。内部動作確認（未公開）。
+- `v0.2.0`: Phase 2（独立ウィンドウ）。
+- `v1.0.0`: ストア申請（[CONVENTIONS.md](../../CONVENTIONS.md) §10）。カテゴリ =
+  Developer Tools、公開レベルは申請時に決定。
+- 以降の候補は §1「MVP に入れない」を参照。
+
+---
+
+## 13. GitHub リポジトリ
 
 [CONVENTIONS.md](../../CONVENTIONS.md) §9 に従う（Description / Topics は英語のみ・1行）。
 

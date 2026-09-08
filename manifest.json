@@ -27,6 +27,7 @@
     {
       "resources": [
         "content.js",
+        "render.js",
         "selectors.js",
         "inspect.js",
         "cssrule.js",

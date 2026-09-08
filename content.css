@@ -1,7 +1,7 @@
 /*
  * content.css — styles for the shadow-root UI. Fetched by content.js and
  * dropped into a <style> inside the closed shadow root, so nothing here
- * touches the host page. Light theme (project default).
+ * touches the host page. Light theme (project default). Accent: #2563eb.
  */
 
 :host {
@@ -14,7 +14,7 @@
     "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
 }
 
-/* --- highlight + cursor label ------------------------------------------- */
+/* --- highlight + cursor label --------------------------------------- */
 
 .qi-highlight {
   position: fixed;
@@ -46,44 +46,90 @@
   display: block;
 }
 
-/* --- floating bar ----------------------------------------------------- */
+/* --- panel ---------------------------------------------------------- */
 
-.qi-bar {
+.qi-panel {
   position: fixed;
   top: 16px;
   right: 16px;
   display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 9px;
+  flex-direction: column;
+  width: 324px;
+  max-height: 82vh;
+  overflow: hidden;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.16);
+  border-radius: 10px;
+  box-shadow: 0 10px 34px rgba(15, 23, 42, 0.2);
+  color: #0f172a;
+  font-size: 12px;
   pointer-events: auto;
   z-index: 4;
 }
-.qi-bar--collapsed .qi-btn:not(.qi-btn--collapse),
-.qi-bar--collapsed .qi-bar__grip {
+.qi-panel--collapsed {
+  width: auto;
+}
+
+.qi-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: grab;
+  flex-shrink: 0;
+}
+.qi-panel__head:active {
+  cursor: grabbing;
+}
+.qi-panel--collapsed .qi-panel__head {
+  cursor: pointer;
+  border-bottom: 0;
+}
+
+.qi-panel__body {
+  flex: 1;
+  overflow-y: auto;
+}
+.qi-panel--collapsed .qi-panel__body,
+.qi-panel--collapsed .qi-head-btn,
+.qi-panel--collapsed .qi-inspect,
+.qi-panel--collapsed .qi-spacer {
   display: none;
 }
 
-.qi-bar__grip {
-  width: 14px;
-  align-self: stretch;
-  cursor: grab;
-  border-radius: 4px 0 0 4px;
-  background: repeating-linear-gradient(
-    to bottom,
-    #cbd5e1 0 2px,
-    transparent 2px 4px
-  );
+.qi-brand {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
 }
-.qi-bar__grip:active {
-  cursor: grabbing;
+.qi-brand__mark {
+  font-size: 13px;
+  line-height: 1;
+}
+.qi-brand__name {
+  display: none;
+  font-size: 12px;
+}
+.qi-panel--collapsed .qi-brand__name {
+  display: inline;
 }
 
-/* --- buttons -------------------------------------------------------- */
+.qi-spacer {
+  flex: 1;
+}
+
+.qi-hint {
+  padding: 18px 16px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* --- buttons ------------------------------------------------------ */
 
 .qi-btn {
   appearance: none;
@@ -108,72 +154,44 @@
   border-color: #2563eb;
   color: #ffffff;
 }
-.qi-btn--wide {
-  width: 100%;
-  margin-top: 6px;
-  padding: 7px 10px;
+.qi-btn--active:hover {
+  background: #1d4ed8;
 }
 .qi-btn--ghost {
   border-color: transparent;
   background: transparent;
   padding: 4px 6px;
 }
-
-/* --- popover ------------------------------------------------------- */
-
-.qi-pop {
-  position: fixed;
-  width: 320px;
-  max-height: 82vh;
-  overflow-y: auto;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.22);
-  color: #0f172a;
-  font-size: 12px;
-  pointer-events: auto;
-  z-index: 5;
+.qi-btn--ghost:hover {
+  background: #e2e8f0;
+}
+.qi-btn--wide {
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px 10px;
 }
 
-.qi-pop__head {
-  position: sticky;
-  top: 0;
+/* --- result: title + sections ----------------------------------- */
+
+.qi-title {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
   padding: 8px 10px;
-  background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
-  cursor: grab;
 }
-.qi-pop__head:active {
-  cursor: grabbing;
-}
-.qi-pop__title {
-  font-weight: 700;
+.qi-title__sel {
+  flex: 1;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
 }
-.qi-pop__dim {
+.qi-title__dim {
   color: #64748b;
   font-variant-numeric: tabular-nums;
 }
-.qi-pop__inspect {
-  min-width: 0;
-  padding: 5px 10px;
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #ffffff;
-}
-.qi-pop__inspect:hover {
-  background: #1d4ed8;
-}
-
-/* --- sections + rows -------------------------------------------- */
 
 .qi-sec {
   padding: 8px 10px;
@@ -223,11 +241,11 @@
 }
 
 .qi-styles {
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
 }
 
-/* --- box model ------------------------------------------------ */
+/* --- box model ------------------------------------------------- */
 
 .qi-box {
   position: relative;
@@ -258,7 +276,7 @@
   font-weight: 700;
 }
 
-/* --- colors ------------------------------------------------ */
+/* --- colors -------------------------------------------------- */
 
 .qi-chips {
   display: flex;
@@ -303,7 +321,7 @@
   color: #334155;
 }
 
-/* --- toast ------------------------------------------------ */
+/* --- toast ------------------------------------------------- */
 
 .qi-toast {
   position: fixed;
