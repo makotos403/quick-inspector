@@ -1,13 +1,11 @@
-"""Turn the Gemini icon render into the toolbar/store icons.
+"""Draw the toolbar / store icons: a bold white ``</>`` on a blue rounded
+square. Code-drawn (no Gemini dependency) so the stroke weight stays legible
+at 16px and every size is reproducible.
 
-Input : dev/store/raw/icon_src_bracket-arrow.jpg  (Gemini, JPEG, motif on a
-        baked-in transparency checkerboard — see dev/asset-prompts.md)
-Output: dev/icon_src.png            (512, transparent master)
-        icons/icon{16,32,48,128}.png
-
-Pipeline: find the blue rounded square, crop to it, re-mask to a clean rounded
-rectangle (radius 22%) at 4x supersample — this drops Gemini's stray drop
-shadow and gives crisp transparent corners — then downscale.
+Outputs:
+    dev/icon_src.png            512, transparent master
+    icons/icon{16,32,48,128}.png
+    dev/store/icon-store-128.png   opaque, for the Web Store listing (§10.3)
 
 Run: python dev/build_icons.py
 """
@@ -18,61 +16,63 @@ from PIL import Image, ImageDraw
 
 DEV = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(DEV)
-SRC = os.path.join(DEV, "store", "raw", "icon_src_bracket-arrow.jpg")
-MASTER = os.path.join(DEV, "icon_src.png")
 ICONS = os.path.join(ROOT, "icons")
-RADIUS_FRAC = 0.22
-SS = 4
+MASTER = os.path.join(DEV, "icon_src.png")
+STORE_128 = os.path.join(DEV, "store", "icon-store-128.png")
+
+BLUE = (37, 99, 235, 255)  # #2563eb
+WHITE = (248, 250, 255, 255)  # #F8FAFF
+GROUND = (238, 243, 252)  # #EEF3FC (store tile behind the opaque 128)
+SS = 8  # supersample
 
 
-def blue_bbox(im):
-    px = im.load()
-    w, h = im.size
-    x0, y0, x1, y1 = w, h, 0, 0
-    for y in range(h):
-        for x in range(w):
-            r, g, b = px[x, y]
-            if b > r + 25 and b > 120 and g < b:
-                x0, y0 = min(x0, x), min(y0, y)
-                x1, y1 = max(x1, x), max(y1, y)
-    return x0, y0, x1 + 1, y1 + 1
-
-
-def build_master():
-    src = Image.open(SRC).convert("RGB")
-    sq = src.crop(blue_bbox(src))
-    side = max(sq.size)
-    canvas = Image.new("RGB", (side, side), (255, 255, 255))
-    canvas.paste(sq, ((side - sq.width) // 2, (side - sq.height) // 2))
-
-    big = canvas.resize((side * SS, side * SS), Image.LANCZOS)
-    mask = Image.new("L", big.size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        [0, 0, big.size[0] - 1, big.size[1] - 1],
-        radius=int(big.size[0] * RADIUS_FRAC),
-        fill=255,
+def draw_master():
+    n = 128 * SS
+    im = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle(
+        [9 * SS, 9 * SS, n - 9 * SS, n - 9 * SS], radius=int(n * 0.22), fill=BLUE
     )
-    big.putalpha(mask)
-    return big.resize((512, 512), Image.LANCZOS)
+
+    cx = cy = n // 2
+    w = int(n * 0.115)  # stroke width
+    ax, ay = int(n * 0.175), int(n * 0.165)  # chevron half-spread
+    tip = int(n * 0.135)  # chevron point overshoot
+    sx, sy = int(n * 0.055), int(n * 0.215)  # slash half-extents
+
+    d.line([(cx - ax, cy - ay), (cx - ax - tip, cy), (cx - ax, cy + ay)],
+           fill=WHITE, width=w, joint="curve")
+    d.line([(cx + ax, cy - ay), (cx + ax + tip, cy), (cx + ax, cy + ay)],
+           fill=WHITE, width=w, joint="curve")
+    d.line([(cx + sx, cy - sy), (cx - sx, cy + sy)], fill=WHITE, width=w)
+
+    for p in [
+        (cx - ax, cy - ay), (cx - ax, cy + ay), (cx - ax - tip, cy),
+        (cx + ax, cy - ay), (cx + ax, cy + ay), (cx + ax + tip, cy),
+        (cx + sx, cy - sy), (cx - sx, cy + sy),
+    ]:
+        d.ellipse([p[0] - w // 2, p[1] - w // 2, p[0] + w // 2, p[1] + w // 2], fill=WHITE)
+
+    return im.resize((512, 512), Image.LANCZOS)
 
 
 def main():
     os.makedirs(ICONS, exist_ok=True)
-    master = build_master()
+    os.makedirs(os.path.dirname(STORE_128), exist_ok=True)
+
+    master = draw_master()
     master.save(MASTER)
     print("wrote", MASTER)
+
     for px in (128, 48, 32, 16):
         master.resize((px, px), Image.LANCZOS).save(os.path.join(ICONS, f"icon{px}.png"))
     print("wrote icons/icon{16,32,48,128}.png")
 
-    # Opaque 128 for the Web Store listing (CONVENTIONS §10.3: 不透明).
-    store = Image.new("RGB", (128, 128), (238, 243, 252))
+    store = Image.new("RGB", (128, 128), GROUND)
     m128 = master.resize((128, 128), Image.LANCZOS)
     store.paste(m128, (0, 0), m128)
-    store_dir = os.path.join(DEV, "store")
-    os.makedirs(store_dir, exist_ok=True)
-    store.save(os.path.join(store_dir, "icon-store-128.png"))
-    print("wrote dev/store/icon-store-128.png")
+    store.save(STORE_128)
+    print("wrote", STORE_128)
 
 
 if __name__ == "__main__":
