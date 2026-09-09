@@ -84,8 +84,13 @@
   cursor: grabbing;
 }
 .qi-panel--collapsed .qi-panel__head {
-  cursor: pointer;
+  cursor: grab;
   border-bottom: 0;
+  padding: 9px 14px;
+  gap: 8px;
+}
+.qi-panel--collapsed .qi-panel__head:active {
+  cursor: grabbing;
 }
 
 .qi-panel__body {
@@ -115,6 +120,10 @@
 }
 .qi-panel--collapsed .qi-brand__name {
   display: inline;
+  font-size: 13px;
+}
+.qi-panel--collapsed .qi-brand__mark {
+  font-size: 14px;
 }
 
 .qi-spacer {

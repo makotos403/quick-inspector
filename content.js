@@ -138,7 +138,22 @@ function setExpanded(on) {
     stopPicking();
   } else {
     renderBody();
+    clampPanel();
   }
+}
+
+// Keep the panel on screen after it grows back from a dragged handle position.
+function clampPanel() {
+  const p = S.nodes.panel;
+  if (!p.style.left) return; // never dragged → still right-anchored, fits
+  requestAnimationFrame(() => {
+    if (!S) return;
+    const r = p.getBoundingClientRect();
+    const maxLeft = window.innerWidth - r.width - 8;
+    const maxTop = window.innerHeight - r.height - 8;
+    if (r.left > maxLeft) p.style.left = `${Math.max(8, maxLeft)}px`;
+    if (r.top > maxTop) p.style.top = `${Math.max(8, maxTop)}px`;
+  });
 }
 
 function renderBody() {
@@ -296,27 +311,37 @@ function positionLabel(el, x, y) {
 
 // --- dragging -----------------------------------------------------
 
+const DRAG_THRESHOLD = 4; // px of movement before a press counts as a drag
+
 function onHeadPointerDown(e) {
   if (e.target.closest("button")) return;
-  if (!S.expanded) {
-    setExpanded(true);
-    return;
-  }
+  e.preventDefault();
+
   const node = S.nodes.panel;
+  const startX = e.clientX;
+  const startY = e.clientY;
   const rect = node.getBoundingClientRect();
-  const dx = e.clientX - rect.left;
-  const dy = e.clientY - rect.top;
-  // Pin to left/top at the current spot (no jump) before switching off `right`.
-  node.style.left = `${rect.left}px`;
-  node.style.top = `${rect.top}px`;
-  node.style.right = "auto";
+  const dx = startX - rect.left;
+  const dy = startY - rect.top;
+  let dragging = false;
+
   const move = (ev) => {
+    if (!dragging) {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return;
+      dragging = true;
+      // Pin to left/top at the current spot (no jump) before dropping `right`.
+      node.style.left = `${rect.left}px`;
+      node.style.top = `${rect.top}px`;
+      node.style.right = "auto";
+    }
     node.style.left = `${Math.max(0, ev.clientX - dx)}px`;
     node.style.top = `${Math.max(0, ev.clientY - dy)}px`;
   };
   const up = () => {
     window.removeEventListener("pointermove", move, true);
     window.removeEventListener("pointerup", up, true);
+    // A press without a drag on the collapsed handle expands the panel.
+    if (!dragging && !S.expanded) setExpanded(true);
   };
   window.addEventListener("pointermove", move, true);
   window.addEventListener("pointerup", up, true);
