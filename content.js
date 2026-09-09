@@ -44,6 +44,7 @@ async function activate() {
     selected: null,
     model: null,
     hover: null,
+    moved: false,
     moveRaf: 0,
     nodes: {},
     listeners: [],
@@ -142,16 +143,19 @@ function setExpanded(on) {
   }
 }
 
-// Keep the panel on screen after it grows back from a dragged handle position.
+// The panel is always right-anchored (like the toolbar popup it came from), so
+// collapsing shrinks it toward the top-right. This only nudges it back on
+// screen if expanding from a dragged handle position would clip it.
 function clampPanel() {
+  if (!S.moved) return;
   const p = S.nodes.panel;
-  if (!p.style.left) return; // never dragged → still right-anchored, fits
   requestAnimationFrame(() => {
     if (!S) return;
     const r = p.getBoundingClientRect();
-    const maxLeft = window.innerWidth - r.width - 8;
+    let right = parseFloat(p.style.right) || 0;
+    if (r.left < 8) right = Math.max(0, right - (8 - r.left));
+    p.style.right = `${right}px`;
     const maxTop = window.innerHeight - r.height - 8;
-    if (r.left > maxLeft) p.style.left = `${Math.max(8, maxLeft)}px`;
     if (r.top > maxTop) p.style.top = `${Math.max(8, maxTop)}px`;
   });
 }
@@ -321,7 +325,7 @@ function onHeadPointerDown(e) {
   const startX = e.clientX;
   const startY = e.clientY;
   const rect = node.getBoundingClientRect();
-  const dx = startX - rect.left;
+  const offX = rect.right - startX; // cursor → panel right edge
   const dy = startY - rect.top;
   let dragging = false;
 
@@ -329,12 +333,14 @@ function onHeadPointerDown(e) {
     if (!dragging) {
       if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return;
       dragging = true;
-      // Pin to left/top at the current spot (no jump) before dropping `right`.
-      node.style.left = `${rect.left}px`;
+      S.moved = true;
+      // Keep right-anchored (no jump) so collapsing still shrinks toward the right.
+      node.style.left = "auto";
       node.style.top = `${rect.top}px`;
-      node.style.right = "auto";
+      node.style.right = `${window.innerWidth - rect.right}px`;
     }
-    node.style.left = `${Math.max(0, ev.clientX - dx)}px`;
+    const right = window.innerWidth - (ev.clientX + offX);
+    node.style.right = `${Math.max(0, right)}px`;
     node.style.top = `${Math.max(0, ev.clientY - dy)}px`;
   };
   const up = () => {
