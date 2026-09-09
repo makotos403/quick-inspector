@@ -3,7 +3,7 @@
     "message": "お手軽検証ツール"
   },
   "appDesc": {
-    "message": "DevTools を開かずに、浮くオーバーレイから要素のセレクタ・box model・主要スタイルをその場で確認。英語・日本語対応。"
+    "message": "DevTools を開かず、浮くパネルで要素のセレクタ・box model・スタイル・色・サムネイルを確認。最前面ウィンドウ化も可能。日英対応。"
   },
   "actionTitle": {
     "message": "お手軽検証ツール — 要素をピック"

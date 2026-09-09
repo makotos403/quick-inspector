@@ -3,7 +3,7 @@
     "message": "Quick Inspector"
   },
   "appDesc": {
-    "message": "Inspect any element — selectors, box model, key styles — from a floating overlay, no DevTools needed. EN & JA."
+    "message": "Inspect elements without DevTools — selectors, box model, styles, colors, thumbnails — in a panel that can float on top. EN & JA."
   },
   "actionTitle": {
     "message": "Quick Inspector — pick an element"

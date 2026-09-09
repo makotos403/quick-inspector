@@ -7,8 +7,9 @@
 - **表示名**: `Quick Inspector`（EN） / `お手軽検証ツール`（JA）
 - **フォルダ / リポジトリ**: `quick-inspector`（`github.com/makotos403/quick-inspector`, Public, `main`）
 - **形態**: Chrome 拡張（Manifest V3）
-- **状態**: Phase 2（Document PiP 切り出し）実装済み（2026-09-09）。`chrome://extensions` で
-  読み込み可能。次は実機確認 → アイコン本番化 → 公開
+- **状態**: v1.0.0・ストア申請準備（2026-09-10）。機能・アイコン・プロモ確定。
+  掲載文は [`dev/store-listing.md`](store-listing.md)。残りはスクショ撮影 → 提出。
+  カテゴリ = Developer Tools、公開レベル = Public。
 - 元アイデア: [../../IDEAS.md](../../IDEAS.md) 「ページ解剖ピッカー拡張」
 - 構成規約: [../../CONVENTIONS.md](../../CONVENTIONS.md)
 
@@ -424,13 +425,15 @@ quick-inspector/
   `//*[@id]` 限定の `evaluate`）。
 - `selectors.test.mjs`: 生成セレクタが元の要素に丸取り（round-trip）で解決するか、
   id 優先、動的クラス除外、XPath の形。
-- `inspect.test.mjs`: `rgbToHex` / `collapseBox` / `countStructure`（table / list / repeat / depth）。
+- `inspect.test.mjs`: `rgbToHex` / `collapseBox` / `countStructure` /
+  `youTubeThumb` / `bgImageUrl` / `pickImgSrc` / `findMedia`。
 - `cssrule.test.mjs`: 既定値・ノイズ宣言の除去、フォーマット。
-- 実行: `node --test "dev/*.test.mjs"`（全15ケース green）。
+- 実行: `node --test "dev/*.test.mjs"`（全23ケース green）。
 - **未カバー（実機確認）**: shadow DOM UI、ピッカーのヒットテスト、ドラッグ、
   クリップボードコピー、`getComputedStyle` 依存の `inspect()` 本体、
-  **Document PiP 昇格・復帰**（isolated world で `documentPictureInPicture` が
-  見えるか要検証。ダメなら MAIN world 注入＋ブリッジにフォールバック）。
+  画像セクションの DL/開く、**Document PiP 昇格・復帰**（実機で isolated world から
+  `documentPictureInPicture` が見えることを確認済み。ダメな環境では
+  MAIN world 注入＋ブリッジにフォールバック）。
 
 ---
 
@@ -445,22 +448,25 @@ quick-inspector/
 - 詳細は §3.4。制約: 非 HTTPS 不可・遷移で閉じる・ブラウザ全体で同時1つ・
   isolated world で API が見えるか要実機検証。
 
-### 今後
+### 今後（v1.1 以降）
 
-- **ナビゲーション追従**（別タスク）: 遷移後に content script を再注入するには
+- **ピッカーで選択できない要素**への対応（`pointer-events: none`、疑似要素、極小要素、
+  重なり）。`elementsFromPoint` を使う・Alt でスタック送りなど。
+- **ナビゲーション追従**: 遷移後に content script を再注入するには
   `optional_host_permissions`（`*://*/*`）が要る。既定は `activeTab` のまま、
   パネルの「このサイトで継続」ボタンで `chrome.permissions.request`（CONVENTIONS §5）。
-- isolated world で `documentPictureInPicture` が使えなかった場合の
+- 動画の現フレームキャプチャ、Vimeo 等のサムネ対応。
+- isolated world で `documentPictureInPicture` が使えない環境向けの
   MAIN world 注入＋DOM イベントブリッジ。
 
 ---
 
 ## 12. リリース計画
 
-- `v0.1.0`: Phase 1（統合パネル）＋ Phase 2（Document PiP）。内部動作確認（未公開）。
-- `v1.0.0`: ストア申請（[CONVENTIONS.md](../../CONVENTIONS.md) §10）。カテゴリ =
-  Developer Tools、公開レベルは申請時に決定。
-- 以降の候補は §1「MVP に入れない」＋ §11「今後」を参照。
+- `v1.0.0`: Phase 1（統合パネル）＋ Phase 2（Document PiP）＋ 画像セクション。
+  ストア申請（[CONVENTIONS.md](../../CONVENTIONS.md) §10）。カテゴリ = Developer Tools、
+  公開レベル = Public。掲載素材は [`store-listing.md`](store-listing.md)。
+- `v1.1.0` 候補: §11「今後」（ピッカーで選べない要素・ナビ追従 など）。
 
 ---
 
