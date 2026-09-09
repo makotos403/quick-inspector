@@ -343,12 +343,15 @@ quick-inspector/
 ├── .gitignore  .gitattributes
 └── dev/
     ├── spec.md            # 本ファイル
+    ├── asset-prompts.md   # アイコン・プロモの Gemini プロンプトと経緯
     ├── minidom.mjs        # テスト用の最小 DOM（jsdom 不使用）
-    ├── build_icons.py     # Gemini マスター（dev/icon_src.png）→ 4サイズ
-    ├── make_placeholder_icons.py  # 開発用の仮アイコン生成（提出前に差し替え）
+    ├── icon_src.png       # 512px 透過マスター（build_icons.py が生成）
+    ├── build_icons.py     # Gemini 原本 → icon_src.png ＋ icons/ ＋ store 128
+    ├── make_promo.py      # icon_src.png ＋ ワードマーク → store/promo-small.png
     ├── selectors.test.mjs
     ├── inspect.test.mjs
-    └── cssrule.test.mjs
+    ├── cssrule.test.mjs
+    └── store/             # 提出画像（raw/ に Gemini 原本）
 ```
 
 - 共有モジュール4個（`render` `selectors` `inspect` `cssrule`）→ フラット維持（§3: 5個以上で `lib/`）。
@@ -372,13 +375,16 @@ quick-inspector/
 
 ## 9. アイコン・ストア画像
 
-- **現状は `dev/make_placeholder_icons.py` の仮アイコン**（青の角丸＋白い虫めがね）。提出前に差し替え。
-- 本番アートは Gemini 生成。プロンプトとワークフローは
-  **[`dev/asset-prompts.md`](asset-prompts.md)** に集約（アイコン2案＋プロモタイル）。
+- 本番アート確定（2026-09-09）。プロンプト・経緯は [`dev/asset-prompts.md`](asset-prompts.md)。
+- **モチーフ**: コーナーブラケット枠＋右上へ抜ける矢印カーソル（「検証＋別ウィンドウ化」）。
+  虫めがね案は 16px で潰れるため不採用（`dev/store/raw/icon_alt_magnifier.jpg` に保存）。
 - ブランド: 主色 `#2563eb` / 濃色 `#1E3A8A` / タイル地 `#EEF3FC` / シンボル `#F8FAFF`。
-- モチーフ: 虫めがね＋要素コーナーブラケット。細いリング・線は 16px で潰れるので太く。
-- 生成物 → `dev/icon_src.png`（512px 透過）→ `dev/build_icons.py` で 16/32/48/128。
-- プロモタイル → `dev/store/raw/promo_src.png` → `dev/make_promo.py` で 440×280。
+- **`dev/build_icons.py`**: Gemini 原本（`dev/store/raw/icon_src_bracket-arrow.jpg`）から
+  青枠を検出 → 角丸マスク（影除去）→ `dev/icon_src.png` ＋ `icons/icon{16,32,48,128}.png`
+  ＋ `dev/store/icon-store-128.png`（不透明・ストア掲載用）。
+- **`dev/make_promo.py`**: `dev/icon_src.png` ＋ ワードマークを PIL で合成 →
+  `dev/store/promo-small.png`（440×280・24bit）。Gemini にワードマークを描かせない分、
+  スペルと一貫性が確実。
 
 ---
 
