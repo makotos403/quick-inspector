@@ -160,15 +160,17 @@ Dashboard「プライバシー」タブで各権限に入力（英語）。
 
 ## 9. 提出用 zip
 
+Windows には `zip` が無いので **`dev/pack.ps1`** を使う（`git ls-files` から
+`dev/` ・`*.md` ・`LICENSE` ・dotfiles を除外して `../quick-inspector-v<version>.zip` を生成）:
+
 ```
-cd D:\Create\Tools\quick-inspector
-zip -r ../quick-inspector-v1.0.0.zip . \
-  -x 'dev/*' '.git/*' '*.md' 'LICENSE' '.gitignore' '.gitattributes' '*.zip'
+powershell -ExecutionPolicy Bypass -File dev/pack.ps1
 ```
 
-含まれるもの: `manifest.json` / `background.js` / `bootstrap.js` / `content.js` /
-`render.js` / `selectors.js` / `inspect.js` / `cssrule.js` /
-`content.css` / `sections.css` / `pip.css` / `icons/` / `_locales/`
+含まれるもの（17ファイル）: `manifest.json` / `background.js` / `bootstrap.js` /
+`content.js` / `render.js` / `selectors.js` / `inspect.js` / `cssrule.js` /
+`content.css` / `sections.css` / `pip.css` / `icons/icon{16,32,48,128}.png` /
+`_locales/{en,ja}/messages.json`
 
 ---
 
