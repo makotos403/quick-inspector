@@ -370,14 +370,15 @@ quick-inspector/
 
 ---
 
-## 9. アイコン
+## 9. アイコン・ストア画像
 
-- **現状は `dev/make_placeholder_icons.py` が生成した仮アイコン**（青の角丸＋白い虫めがね）。
-  提出前に差し替える。
-- 本番は Gemini に生成依頼（[CONVENTIONS.md](../../CONVENTIONS.md) §4・§10.3.2）。
-- モチーフ案: 虫めがね＋要素の角枠（DevTools の「inspect」矢印＋ボックス）を
-  ミニマルに。細いリング意匠は 16px で潰れるので避ける。ブランド色 `#2563eb`。
-- `dev/icon_src.png`（512px 透過）→ `dev/build_icons.py` で 16/32/48/128 生成。
+- **現状は `dev/make_placeholder_icons.py` の仮アイコン**（青の角丸＋白い虫めがね）。提出前に差し替え。
+- 本番アートは Gemini 生成。プロンプトとワークフローは
+  **[`dev/asset-prompts.md`](asset-prompts.md)** に集約（アイコン2案＋プロモタイル）。
+- ブランド: 主色 `#2563eb` / 濃色 `#1E3A8A` / タイル地 `#EEF3FC` / シンボル `#F8FAFF`。
+- モチーフ: 虫めがね＋要素コーナーブラケット。細いリング・線は 16px で潰れるので太く。
+- 生成物 → `dev/icon_src.png`（512px 透過）→ `dev/build_icons.py` で 16/32/48/128。
+- プロモタイル → `dev/store/raw/promo_src.png` → `dev/make_promo.py` で 440×280。
 
 ---
 
