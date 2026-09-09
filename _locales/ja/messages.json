@@ -20,6 +20,15 @@
   "panelClose": {
     "message": "終了 (Esc)"
   },
+  "pipOpen": {
+    "message": "別ウィンドウで開く（最前面）"
+  },
+  "pipUnavailable": {
+    "message": "別ウィンドウは HTTPS ページでのみ使えます"
+  },
+  "pipDocked": {
+    "message": "別ウィンドウ表示中"
+  },
   "hintPicking": {
     "message": "要素にカーソルを合わせ、クリックで検証します。"
   },

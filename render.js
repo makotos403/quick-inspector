@@ -3,9 +3,9 @@
  *
  * Deliberately has no logic dependencies (no selectors.js / inspect.js /
  * cssrule.js): everything it needs is precomputed into `model` by whoever calls
- * it. That keeps it usable both in the page's shadow root (content.js) and,
- * later, in a standalone popup window (panel.js) that only receives the model
- * over messaging.
+ * it. That keeps it usable both in the page's shadow root and in the
+ * Document Picture-in-Picture window, whose `document` differs — every element
+ * is created via `container.ownerDocument`, tracked in `_doc`.
  *
  * model = {
  *   header:  { tag, id, classes: string[], text },
@@ -21,9 +21,13 @@
 
 const t = (key, subs) => chrome.i18n.getMessage(key, subs) || key;
 
-/** Small hyperscript helper, shared with content.js. */
-export function h(tag, props = {}, ...kids) {
-  const el = document.createElement(tag);
+// The document new elements belong to — set from the container on every render,
+// so the same code works in the page and in the PiP window. Rendering is
+// synchronous, so a module-level value is safe.
+let _doc = typeof document !== "undefined" ? document : null;
+
+function h(tag, props = {}, ...kids) {
+  const el = _doc.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
     if (k === "class") el.className = v;
     else if (k === "text") el.textContent = v;
@@ -36,6 +40,7 @@ export function h(tag, props = {}, ...kids) {
 
 /** Replace `container`'s content with a single centered message. */
 export function renderMessage(container, text) {
+  _doc = container.ownerDocument;
   container.replaceChildren(h("div", { class: "qi-hint", text }));
 }
 
@@ -46,6 +51,7 @@ export function renderMessage(container, text) {
  * @param {(text: string) => void} onCopy
  */
 export function renderModel(container, model, onCopy) {
+  _doc = container.ownerDocument;
   container.replaceChildren(
     titleRow(model),
     section(t("secSelector"), [

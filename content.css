@@ -1,17 +1,11 @@
 /*
- * content.css — styles for the shadow-root UI. Fetched by content.js and
- * dropped into a <style> inside the closed shadow root, so nothing here
- * touches the host page. Light theme (project default). Accent: #2563eb.
+ * content.css — the shadow-root shell: host reset, hover overlay, and the
+ * in-page panel frame. Loaded together with sections.css (shared result
+ * styling) into the closed shadow root. Light theme, accent #2563eb.
  */
 
 :host {
   all: initial;
-}
-
-* {
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
 }
 
 /* --- highlight + cursor label --------------------------------------- */
@@ -46,7 +40,7 @@
   display: block;
 }
 
-/* --- panel ---------------------------------------------------------- */
+/* --- panel shell -------------------------------------------------- */
 
 .qi-panel {
   position: fixed;
@@ -66,7 +60,8 @@
   pointer-events: auto;
   z-index: 4;
 }
-.qi-panel--collapsed {
+.qi-panel--collapsed,
+.qi-panel--docked {
   width: auto;
 }
 
@@ -83,13 +78,15 @@
 .qi-panel__head:active {
   cursor: grabbing;
 }
-.qi-panel--collapsed .qi-panel__head {
+.qi-panel--collapsed .qi-panel__head,
+.qi-panel--docked .qi-panel__head {
   cursor: grab;
   border-bottom: 0;
   padding: 9px 14px;
   gap: 8px;
 }
-.qi-panel--collapsed .qi-panel__head:active {
+.qi-panel--collapsed .qi-panel__head:active,
+.qi-panel--docked .qi-panel__head:active {
   cursor: grabbing;
 }
 
@@ -97,258 +94,28 @@
   flex: 1;
   overflow-y: auto;
 }
-.qi-panel--collapsed .qi-panel__body,
-.qi-panel--collapsed .qi-head-btn,
-.qi-panel--collapsed .qi-inspect,
-.qi-panel--collapsed .qi-spacer {
-  display: none;
-}
 
-.qi-brand {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 700;
-}
-.qi-brand__mark {
-  font-size: 13px;
-  line-height: 1;
-}
-.qi-brand__name {
+/* the panel's brand name only shows when there is no Inspect button beside it */
+.qi-panel .qi-brand__name {
   display: none;
-  font-size: 12px;
 }
-.qi-panel--collapsed .qi-brand__name {
+.qi-panel--collapsed .qi-brand__name,
+.qi-panel--docked .qi-brand__name {
   display: inline;
   font-size: 13px;
 }
-.qi-panel--collapsed .qi-brand__mark {
+.qi-panel--collapsed .qi-brand__mark,
+.qi-panel--docked .qi-brand__mark {
   font-size: 14px;
 }
 
-.qi-spacer {
-  flex: 1;
-}
-
-.qi-hint {
-  padding: 18px 16px;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.6;
-  text-align: center;
-}
-
-/* --- buttons ------------------------------------------------------ */
-
-.qi-btn {
-  appearance: none;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #0f172a;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.qi-btn:hover {
-  background: #eef2f7;
-}
-.qi-btn--primary {
-  min-width: 52px;
-}
-.qi-btn--active {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #ffffff;
-}
-.qi-btn--active:hover {
-  background: #1d4ed8;
-}
-.qi-btn--ghost {
-  border-color: transparent;
-  background: transparent;
-  padding: 4px 6px;
-}
-.qi-btn--ghost:hover {
-  background: #e2e8f0;
-}
-.qi-btn--wide {
-  width: 100%;
-  margin-top: 6px;
-  padding: 7px 10px;
-}
-
-/* --- result: title + sections ----------------------------------- */
-
-.qi-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid #e2e8f0;
-}
-.qi-title__sel {
-  flex: 1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.qi-title__dim {
-  color: #64748b;
-  font-variant-numeric: tabular-nums;
-}
-
-.qi-sec {
-  padding: 8px 10px;
-  border-bottom: 1px solid #eef2f7;
-}
-.qi-sec:last-child {
-  border-bottom: 0;
-}
-.qi-sec__h {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 10px;
-  font-weight: 700;
-  color: #94a3b8;
-  margin-bottom: 6px;
-}
-
-.qi-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 3px 0;
-}
-.qi-row__k {
-  flex: 0 0 92px;
-  color: #64748b;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-}
-.qi-row__v {
-  flex: 1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  word-break: break-all;
-}
-.qi-row--copy {
-  cursor: pointer;
-  border-radius: 5px;
-  padding: 4px;
-  margin: 0 -4px;
-}
-.qi-row--copy:hover {
-  background: #f1f5f9;
-}
-.qi-row__copy {
-  color: #94a3b8;
-}
-
-.qi-styles {
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-/* --- box model ------------------------------------------------- */
-
-.qi-box {
-  position: relative;
-  text-align: center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
-  padding: 16px;
-}
-.qi-box__t,
-.qi-box__r,
-.qi-box__b,
-.qi-box__l {
-  position: absolute;
-  color: #475569;
-}
-.qi-box__t { top: 2px; left: 50%; transform: translateX(-50%); }
-.qi-box__b { bottom: 2px; left: 50%; transform: translateX(-50%); }
-.qi-box__l { left: 3px; top: 50%; transform: translateY(-50%); }
-.qi-box__r { right: 3px; top: 50%; transform: translateY(-50%); }
-
-.qi-box--margin { background: #fef3c7; }
-.qi-box--border { background: #fde68a; }
-.qi-box--padding { background: #d9f99d; }
-.qi-box--content {
-  background: #bae6fd;
-  color: #0c4a6e;
-  padding: 12px 8px;
-  font-weight: 700;
-}
-
-/* --- colors -------------------------------------------------- */
-
-.qi-chips {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.qi-chip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.qi-chip:hover {
-  background: #f1f5f9;
-}
-.qi-chip--empty {
-  cursor: default;
-  opacity: 0.6;
-}
-.qi-chip__sw {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  border: 1px solid #cbd5e1;
-  background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
-    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%);
-  background-size: 8px 8px;
-}
-.qi-chip__k {
-  flex: 0 0 80px;
-  color: #64748b;
-}
-.qi-chip__v {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-.qi-struct {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  color: #334155;
-}
-
-/* --- toast ------------------------------------------------- */
-
-.qi-toast {
-  position: fixed;
-  left: 50%;
-  bottom: 28px;
-  transform: translate(-50%, 12px);
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: #0f172a;
-  color: #f8fafc;
-  font-size: 12px;
-  font-weight: 600;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.14s ease, transform 0.14s ease;
-  z-index: 6;
-}
-.qi-toast--on {
-  opacity: 1;
-  transform: translate(-50%, 0);
+.qi-panel--collapsed .qi-panel__body,
+.qi-panel--collapsed .qi-head-btn,
+.qi-panel--collapsed .qi-inspect,
+.qi-panel--collapsed .qi-spacer,
+.qi-panel--docked .qi-panel__body,
+.qi-panel--docked .qi-head-btn,
+.qi-panel--docked .qi-inspect,
+.qi-panel--docked .qi-spacer {
+  display: none;
 }

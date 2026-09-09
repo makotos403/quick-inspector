@@ -1,10 +1,11 @@
 /**
  * content.js — the in-page UI (ES module, loaded by bootstrap.js).
  *
- * One draggable panel lives inside a closed shadow root on a single fixed host
- * element. Collapsed it is a small handle; expanded it shows the Inspect toggle
- * and the inspection result. The page DOM gains exactly one node (the host) and
- * nothing here reflows the page.
+ * A draggable panel lives inside a closed shadow root on a single fixed host
+ * element. It can be promoted to a Document Picture-in-Picture window (📌),
+ * which floats on top of every window and does not cover the page at all; the
+ * picker keeps running in the page and results render into the PiP document.
+ * The page DOM gains exactly one node (the host) and nothing here reflows it.
  *
  * Exported `toggle()` flips the tool on and off — bootstrap.js calls it on
  * every toolbar click, and the module stays cached between clicks.
@@ -13,10 +14,26 @@
 import { buildCssSelector, buildXPath } from "./selectors.js";
 import { inspect } from "./inspect.js";
 import { toCssRule } from "./cssrule.js";
-import { h, renderModel, renderMessage } from "./render.js";
+import { renderModel, renderMessage } from "./render.js";
 
 const HOST_ID = "quick-inspector-host";
 const t = (key, subs) => chrome.i18n.getMessage(key, subs) || key;
+
+/** hyperscript helper bound to a specific document (page or PiP). */
+const mk =
+  (doc) =>
+  (tag, props = {}, ...kids) => {
+    const el = doc.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === "class") el.className = v;
+      else if (k === "text") el.textContent = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else if (v != null) el.setAttribute(k, v);
+    }
+    for (const kid of kids) if (kid != null) el.append(kid);
+    return el;
+  };
+const h = mk(document);
 
 let S = null;
 
@@ -46,6 +63,7 @@ async function activate() {
     hover: null,
     moved: false,
     moveRaf: 0,
+    pip: null,
     nodes: {},
     listeners: [],
   };
@@ -60,6 +78,12 @@ async function activate() {
 function teardown() {
   if (!S) return;
   if (S.moveRaf) cancelAnimationFrame(S.moveRaf);
+  if (S.pip) {
+    S.pip.removeEventListener("pagehide", demoteFromPip);
+    try {
+      S.pip.close();
+    } catch {}
+  }
   for (const [target, type, fn, opts] of S.listeners) {
     target.removeEventListener(type, fn, opts);
   }
@@ -69,13 +93,19 @@ function teardown() {
 
 async function injectStyles(root) {
   const style = document.createElement("style");
-  try {
-    const res = await fetch(chrome.runtime.getURL("content.css"));
-    style.textContent = await res.text();
-  } catch {
-    style.textContent = ":host{all:initial}";
-  }
+  style.textContent = await loadCss("content.css", "sections.css");
   root.appendChild(style);
+}
+
+async function loadCss(...files) {
+  const parts = await Promise.all(
+    files.map((f) =>
+      fetch(chrome.runtime.getURL(f))
+        .then((r) => r.text())
+        .catch(() => ""),
+    ),
+  );
+  return parts.join("\n");
 }
 
 // --- panel + overlay ---------------------------------------------------
@@ -93,6 +123,17 @@ function buildPanel(root) {
     class: "qi-btn qi-btn--primary qi-inspect",
     onclick: onInspectToggle,
   });
+  const pipBtn = h("button", {
+    class: "qi-btn qi-btn--ghost qi-head-btn qi-pip-btn",
+    text: "📌",
+    onclick: promoteToPip,
+  });
+  if (pipSupported()) {
+    pipBtn.title = t("pipOpen");
+  } else {
+    pipBtn.disabled = true;
+    pipBtn.title = t("pipUnavailable");
+  }
   const collapseBtn = h("button", {
     class: "qi-btn qi-btn--ghost qi-head-btn",
     title: t("panelCollapse"),
@@ -106,17 +147,14 @@ function buildPanel(root) {
     onclick: teardown,
   });
 
+  const brandName = h("span", { class: "qi-brand__name", text: t("barInspect") });
   const head = h(
     "div",
     { class: "qi-panel__head", onpointerdown: onHeadPointerDown },
-    h(
-      "span",
-      { class: "qi-brand" },
-      h("span", { class: "qi-brand__mark", text: "🔍" }),
-      h("span", { class: "qi-brand__name", text: t("barInspect") }),
-    ),
+    h("span", { class: "qi-brand" }, h("span", { class: "qi-brand__mark", text: "🔍" }), brandName),
     inspectBtn,
     h("span", { class: "qi-spacer" }),
+    pipBtn,
     collapseBtn,
     closeBtn,
   );
@@ -127,6 +165,7 @@ function buildPanel(root) {
   S.nodes.panel = panel;
   S.nodes.body = body;
   S.nodes.inspectBtn = inspectBtn;
+  S.nodes.brandName = brandName;
 
   setExpanded(true);
   syncInspectBtn();
@@ -161,12 +200,81 @@ function clampPanel() {
 }
 
 function renderBody() {
-  if (!S.expanded) return;
+  const target = S.pip ? S.nodes.pipBody : S.expanded ? S.nodes.body : null;
+  if (!target) return;
   if (S.selected && S.model) {
-    renderModel(S.nodes.body, S.model, copy);
+    renderModel(target, S.model, copy);
   } else {
-    renderMessage(S.nodes.body, S.picking ? t("hintPicking") : t("hintIdle"));
+    renderMessage(target, S.picking ? t("hintPicking") : t("hintIdle"));
   }
+}
+
+// --- Document Picture-in-Picture --------------------------------------
+
+function pipSupported() {
+  return "documentPictureInPicture" in window && window.isSecureContext;
+}
+
+async function promoteToPip() {
+  if (S.pip || !pipSupported()) return;
+  let pip;
+  try {
+    pip = await window.documentPictureInPicture.requestWindow({ width: 380, height: 560 });
+  } catch {
+    return; // NotAllowedError (no gesture), NotSupportedError (disabled), …
+  }
+  S.pip = pip;
+
+  const style = pip.document.createElement("style");
+  style.textContent = await loadCss("sections.css", "pip.css");
+  (pip.document.head || pip.document.documentElement).append(style);
+  pip.document.title = t("appName");
+  pip.document.documentElement.lang = chrome.i18n.getUILanguage();
+
+  const ph = mk(pip.document);
+  const pipInspectBtn = ph("button", {
+    class: "qi-btn qi-btn--primary qi-inspect",
+    onclick: onInspectToggle,
+  });
+  const pipBody = ph("div", { class: "qi-pip__body" });
+  pip.document.body.append(
+    ph(
+      "div",
+      { class: "qi-pip" },
+      ph(
+        "div",
+        { class: "qi-pip__head" },
+        ph("span", { class: "qi-brand" }, ph("span", { class: "qi-brand__mark", text: "🔍" }), ph("span", { class: "qi-brand__name", text: t("appName") })),
+        pipInspectBtn,
+        ph("span", { class: "qi-spacer" }),
+      ),
+      pipBody,
+    ),
+  );
+
+  S.nodes.pipBody = pipBody;
+  S.nodes.pipInspectBtn = pipInspectBtn;
+
+  // Dock the in-page panel to a handle; clicking it re-focuses the PiP window.
+  S.nodes.panel.classList.add("qi-panel--docked");
+  S.nodes.brandName.textContent = t("pipDocked");
+  S.expanded = false;
+
+  syncInspectBtn();
+  renderBody();
+
+  pip.addEventListener("pagehide", demoteFromPip, { once: true });
+}
+
+function demoteFromPip() {
+  if (!S) return;
+  S.pip = null;
+  S.nodes.pipBody = null;
+  S.nodes.pipInspectBtn = null;
+  S.nodes.panel.classList.remove("qi-panel--docked");
+  S.nodes.brandName.textContent = t("barInspect");
+  setExpanded(true);
+  syncInspectBtn();
 }
 
 // --- picking ---------------------------------------------------------
@@ -193,9 +301,11 @@ function stopPicking() {
 }
 
 function syncInspectBtn() {
-  const b = S.nodes.inspectBtn;
-  b.textContent = S.picking ? t("barStop") : t("barInspect");
-  b.classList.toggle("qi-btn--active", S.picking);
+  for (const b of [S.nodes.inspectBtn, S.nodes.pipInspectBtn]) {
+    if (!b) continue;
+    b.textContent = S.picking ? t("barStop") : t("barInspect");
+    b.classList.toggle("qi-btn--active", S.picking);
+  }
 }
 
 function select(el) {
@@ -206,7 +316,7 @@ function select(el) {
   syncInspectBtn();
   positionHighlight(el);
   S.nodes.label.classList.remove("qi-label--on");
-  if (!S.expanded) setExpanded(true);
+  if (!S.pip && !S.expanded) setExpanded(true);
   else renderBody();
 }
 
@@ -346,8 +456,10 @@ function onHeadPointerDown(e) {
   const up = () => {
     window.removeEventListener("pointermove", move, true);
     window.removeEventListener("pointerup", up, true);
-    // A press without a drag on the collapsed handle expands the panel.
-    if (!dragging && !S.expanded) setExpanded(true);
+    if (dragging) return;
+    // A press without a drag: focus the PiP window, or expand the handle.
+    if (S.pip) S.pip.focus();
+    else if (!S.expanded) setExpanded(true);
   };
   window.addEventListener("pointermove", move, true);
   window.addEventListener("pointerup", up, true);
@@ -383,11 +495,11 @@ async function copy(text) {
 }
 
 function toast() {
-  let el = S.nodes.toast;
+  const container = S.pip ? S.pip.document.body : S.root;
+  let el = container.querySelector(".qi-toast");
   if (!el) {
-    el = h("div", { class: "qi-toast" });
-    S.root.append(el);
-    S.nodes.toast = el;
+    el = (S.pip ? mk(S.pip.document) : h)("div", { class: "qi-toast" });
+    container.append(el);
   }
   el.textContent = t("copied");
   el.classList.add("qi-toast--on");

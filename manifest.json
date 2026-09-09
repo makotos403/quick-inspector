@@ -31,7 +31,9 @@
         "selectors.js",
         "inspect.js",
         "cssrule.js",
-        "content.css"
+        "content.css",
+        "sections.css",
+        "pip.css"
       ],
       "matches": ["<all_urls>"]
     }

@@ -20,6 +20,15 @@
   "panelClose": {
     "message": "Close (Esc)"
   },
+  "pipOpen": {
+    "message": "Open in a floating window"
+  },
+  "pipUnavailable": {
+    "message": "Floating window needs an HTTPS page"
+  },
+  "pipDocked": {
+    "message": "In a floating window"
+  },
   "hintPicking": {
     "message": "Hover an element, then click to inspect it."
   },

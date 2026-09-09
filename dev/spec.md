@@ -7,18 +7,22 @@
 - **表示名**: `Quick Inspector`（EN） / `お手軽検証ツール`（JA）
 - **フォルダ / リポジトリ**: `quick-inspector`（`github.com/makotos403/quick-inspector`, Public, `main`）
 - **形態**: Chrome 拡張（Manifest V3）
-- **状態**: Phase 1（統合パネル）実装済み（2026-09-08）。`chrome://extensions` で読み込み可能。
-  次は実機確認 → Phase 2（独立ウィンドウ切り出し）→ アイコン本番化 → 公開
+- **状態**: Phase 2（Document PiP 切り出し）実装済み（2026-09-09）。`chrome://extensions` で
+  読み込み可能。次は実機確認 → アイコン本番化 → 公開
 - 元アイデア: [../../IDEAS.md](../../IDEAS.md) 「ページ解剖ピッカー拡張」
 - 構成規約: [../../CONVENTIONS.md](../../CONVENTIONS.md)
 
 ### UI の変遷
 
 - 当初: 画面隅の1行バー ＋ 選択時に別ポップオーバー（案 A）。
-- **現行（Phase 1）**: バーとポップオーバーを**1つの折りたたみ式縦パネル**に統合。
+- **Phase 1**: バーとポップオーバーを**1つの折りたたみ式縦パネル**に統合。
   検証トグルはパネルヘッダーの1箇所だけ。描画は `render.js` に分離。
-- **Phase 2**: パネルを `chrome.windows.create` で**ブラウザ外の独立ウィンドウ**に
-  切り出せるようにする（IDEAS 案 C）。切り出し中はページ側に小ハンドルだけ残す。
+- **Phase 2（現行）**: ヘッダーの `📌` で、そのパネルを **Document Picture-in-Picture
+  ウィンドウ**に昇格（常に最前面・ページを1pxも覆わない）。`chrome.windows.create` では
+  最前面固定ができないため PiP を採用。**ハイブリッド**構成 —
+  PiP が使えない環境（非 HTTPS・`chrome://` 等）ではページ内パネルのまま。
+- **将来（別タスク）**: ナビゲーション追従。遷移後に content script を再注入するため
+  `optional_host_permissions` を「このサイトで継続」ボタンで必要時に取得（CONVENTIONS §5）。
 
 ---
 
@@ -102,8 +106,8 @@
   `selectors.js` / `inspect.js` / `cssrule.js` に一切依存しない。
 - `content.js` が `buildModel(el)` で `inspect()` ＋ セレクタ ＋ `toCssRule()` を
   1つの `model` にまとめ、`render.js` に渡す。
-- 狙い: Phase 2 の独立ウィンドウ（`panel.js`）が、messaging で受け取った `model` を
-  同じ `render.js` でそのまま描ける。
+- `render.js` は要素生成を `container.ownerDocument` 経由で行う（`_doc` に保持）。
+  これでページの shadow root と PiP ウィンドウの `document` の両方で同じコードが動く。
 
 ---
 
@@ -114,13 +118,14 @@
 - `position: fixed`、常に**右上アンカー**（`right` / `top` で位置管理）。ツールバーの
   ポップアップと同じ原点なので収まりがよく、折りたたみは右上方向に縮む・
   ウィンドウ幅変更でも右端に追従する。ヘッダーをドラッグで移動（座標は保持しない）。
-- **展開時**のヘッダー: `[🔍]` `[検証 / 停止]` … `[– 折りたたみ]` `[✕]`
+- **展開時**のヘッダー: `[🔍]` `[検証 / 停止]` … `[📌]` `[– 折りたたみ]` `[✕]`
   - 検証トグル: ピッカーの開始 / 停止。起動中はラベル「停止」＋青くアクティブ表示。
     文言キー `barInspect` / `barStop`（「ピック」ではなくツール名と揃えて「検証」）。
+  - `📌`: PiP ウィンドウへ昇格（§3.4）。PiP 非対応環境では `disabled`＋理由ツールチップ。
   - `–`: パネルを折りたたむ（→ ハンドル化）。折りたたむと検証も停止。
   - `✕`: `teardown()`。
-- **折りたたみ時**: `[🔍 検証]` の小ハンドルのみ（`cursor: grab`・つかむ余白あり）。
-  - 押してすぐ離す → 展開。
+- **折りたたみ時 / PiP ドック時**: `[🔍 …]` の小ハンドルのみ（`cursor: grab`・つかむ余白あり）。
+  - 押してすぐ離す → 展開（PiP 中なら PiP ウィンドウを前面へ）。
   - 押して 4px 以上動かす → ドラッグ移動（展開しない）。
   - 展開時のヘッダードラッグも同じ 4px しきい値で「クリック」と「ドラッグ」を判定。
 - **本体**（展開時のみ）:
@@ -163,6 +168,25 @@
      - 直下に同一タグの子が3個以上 → `N × <tag>`
      - `ネスト深さ D`（選択要素を根とした最大子孫深さ）
 - コピー時トースト: `コピーしました` / `Copied`（言語で出し分け）。
+
+### 3.4 Document Picture-in-Picture（`📌`）
+
+- 前提: `"documentPictureInPicture" in window` ＋ `window.isSecureContext`。
+  満たさない場合は `📌` を `disabled`＋ツールチップ（`pipUnavailable`）。
+- `promoteToPip()`:
+  1. `window.documentPictureInPicture.requestWindow({ width: 380, height: 560 })`
+     （**click ハンドラ内で最初に await** — transient activation が要る）。
+  2. `sections.css` ＋ `pip.css` を `fetch` して PiP の `<style>` に注入。
+     `document.title` / `documentElement.lang` を設定。
+  3. PiP の `document` に `.qi-pip`（ヘッダー＝ブランド＋検証トグル、本体＝`.qi-pip__body`）を構築。
+  4. ページ内パネルを `qi-panel--docked` でハンドル化、ブランド名を「別ウィンドウ表示中」に。
+  5. 以後 `renderBody()` は `S.pip ? pipBody : …` で **PiP 側に描画**。
+- ピッカーは**ページ側の content.js のまま**動く（`mousemove` / `click` はウィンドウ
+  フォーカスに関係なく発火）。ハイライト枠もページの shadow root に出続ける。
+- 終了検知: `pip.addEventListener("pagehide", demoteFromPip, { once: true })`。
+  ネイティブの閉じるボタン・元タブの遷移/クローズでも発火 → ページ内パネルに復帰。
+- `teardown()` は先に `pagehide` リスナを外してから `pip.close()`。
+- コピーのトーストは PiP 中は PiP の `body` に出す。
 
 ---
 
@@ -261,7 +285,7 @@
     {
       "resources": [
         "content.js", "render.js", "selectors.js", "inspect.js",
-        "cssrule.js", "content.css"
+        "cssrule.js", "content.css", "sections.css", "pip.css"
       ],
       "matches": ["<all_urls>"]
     }
@@ -286,7 +310,8 @@
 - 拡張内 UI: **手動切替なし**なので `chrome.i18n.getMessage` で統一
   （`strings.<lang>.json` + 自作ローダは使わない）。content script でも `chrome.i18n` は使える。
 - 文言キー: `appName`, `appDesc`, `actionTitle`, `barInspect`, `barStop`,
-  `panelCollapse`, `panelClose`, `hintPicking`, `hintIdle`,
+  `panelCollapse`, `panelClose`, `pipOpen`, `pipUnavailable`, `pipDocked`,
+  `hintPicking`, `hintIdle`,
   `secSelector`, `secBox`, `secStyles`, `secColors`, `secStructure`,
   `copyRule`, `copied`, `labelCss`, `labelXpath`,
   `structTable`, `structItems`, `structRepeat`, `structDepth`
@@ -300,9 +325,11 @@ quick-inspector/
 ├── manifest.json
 ├── background.js          # action.onClicked → bootstrap.js を注入（classic）
 ├── bootstrap.js           # 極小・classic。import(content.js) するだけ
-├── content.js             # 統合パネル・ピッカー・shadow DOM UI（ESM）
-├── content.css            # shadow root に流し込む UI スタイル
-├── render.js              # パネル本体の DOM 生成（model → DOM。ロジック依存なし）
+├── content.js             # 統合パネル・ピッカー・PiP 昇格・shadow DOM UI（ESM）
+├── content.css            # shadow root の外殻（:host / ハイライト / パネル枠）
+├── sections.css           # 結果セクション・ボタン・トーストの共通スタイル（shadow ＆ PiP）
+├── pip.css                # PiP ウィンドウのページレイアウト
+├── render.js              # パネル本体の DOM 生成（model → DOM。ロジック依存なし・doc 可搬）
 ├── selectors.js           # buildCssSelector / buildXPath（純粋）
 ├── inspect.js             # inspect / countStructure / rgbToHex / collapseBox（純粋）
 ├── cssrule.js             # toCssRule（純粋）
@@ -325,10 +352,10 @@ quick-inspector/
 ```
 
 - 共有モジュール4個（`render` `selectors` `inspect` `cssrule`）→ フラット維持（§3: 5個以上で `lib/`）。
-  Phase 2 で `panel.*` が増えると 5 個目。そこで `lib/` 化を検討。
-- `content.css` は shadow DOM 注入用。実ファイルにして `fetch` で読む。
-- `web_accessible_resources`: `bootstrap.js` は不要（`executeScript` で注入するため）。
-  `content.js` `render.js` `selectors.js` `inspect.js` `cssrule.js` `content.css` を登録。
+- CSS 3枚（`content.css` / `sections.css` / `pip.css`）はいずれも `fetch` で読み込み、
+  shadow root には `content.css + sections.css`、PiP には `sections.css + pip.css` を注入。
+- `web_accessible_resources`: `bootstrap.js` は不要（`executeScript` で注入）。
+  上記 JS 4個 ＋ `content.js` ＋ CSS 3枚を登録。
 - テスト実行: `node --test "dev/*.test.mjs"`（Node 24 / 全15ケース green）。
 
 ---
@@ -336,8 +363,9 @@ quick-inspector/
 ## 8. プライバシー / セキュリティ
 
 - 外部通信ゼロ。ページ内容の保存・送信なし。`chrome.storage` も未使用。
-- `activeTab` のみ・ユーザーがアイコンをクリックしたタブ・その回だけ動作。
+- `activeTab` ＋ `scripting` のみ・ユーザーがアイコンをクリックしたタブ・その回だけ動作。
 - ページの DOM 変更はホスト要素1個の追加のみ。終了で撤去。
+- PiP ウィンドウの内容もローカル生成のみ（外部通信なし）。
 - PRIVACY.md にデータ収集なしを明記。
 
 ---
@@ -364,37 +392,39 @@ quick-inspector/
 - `cssrule.test.mjs`: 既定値・ノイズ宣言の除去、フォーマット。
 - 実行: `node --test "dev/*.test.mjs"`（全15ケース green）。
 - **未カバー（実機確認）**: shadow DOM UI、ピッカーのヒットテスト、ドラッグ、
-  クリップボードコピー、`getComputedStyle` 依存の `inspect()` 本体。
+  クリップボードコピー、`getComputedStyle` 依存の `inspect()` 本体、
+  **Document PiP 昇格・復帰**（isolated world で `documentPictureInPicture` が
+  見えるか要検証。ダメなら MAIN world 注入＋ブリッジにフォールバック）。
 
 ---
 
-## 11. Phase 2 — 独立ウィンドウ切り出し
+## 11. 実装済みの経緯・今後
 
-パネルヘッダーに `[↗]` を追加し、`chrome.windows.create({ type: "popup" })` で
-`panel.html` を開く。対象ページを1pxも覆わなくなる（当初の動機に一番忠実）。
+### Phase 2 — Document PiP 切り出し（実装済み）
 
-- **新規ファイル**: `panel.html` / `panel.js` / `panel.css`。
-- **描画**: `panel.js` は `render.js` をそのまま使う（§2.4 の狙い）。
-- **messaging**: `content.js`（ピッカー・`model` 生成）↔ `background.js`（tabId 中継）↔
-  `panel.js`。ポップアップは開いた元タブに束縛。
-  - `panel.js` の `[検証]` → content.js に「ピッカー開始」を送る。
-  - content.js が select したら `model` を panel.js へ送って描画。
-- **ページ側**: 切り出し中はパネルを小ハンドルだけに（クリックでウィンドウを前面へ、
-  再度でページ内表示に戻す）。
-- **状態遷移**: ポップアップを閉じる / 元タブを閉じる・遷移する → ページ内パネルに戻る。
-- 追加権限は不要（`chrome.windows` はパーミッション不要、`panel.html` は同梱ページ）。
-- テスト: `render.js` の描画は `panel.js` 経由でも同じなので追加ユニットテストは
-  `render` のスナップショット程度。messaging 配線は実機確認。
+- `chrome.windows.create` は**最前面固定ができない**（API なし）。ユーザー要望が
+  「ブラウザ最前面に浮くツール」だったため **Document Picture-in-Picture** を採用。
+- messaging も別ページ（`panel.html`）も**不要**になった: PiP の `document` を
+  `content.js` が直接構築し、`render.js` を `container.ownerDocument` 経由で流用。
+- 詳細は §3.4。制約: 非 HTTPS 不可・遷移で閉じる・ブラウザ全体で同時1つ・
+  isolated world で API が見えるか要実機検証。
+
+### 今後
+
+- **ナビゲーション追従**（別タスク）: 遷移後に content script を再注入するには
+  `optional_host_permissions`（`*://*/*`）が要る。既定は `activeTab` のまま、
+  パネルの「このサイトで継続」ボタンで `chrome.permissions.request`（CONVENTIONS §5）。
+- isolated world で `documentPictureInPicture` が使えなかった場合の
+  MAIN world 注入＋DOM イベントブリッジ。
 
 ---
 
 ## 12. リリース計画
 
-- `v0.1.0`: Phase 1（統合パネル）。内部動作確認（未公開）。
-- `v0.2.0`: Phase 2（独立ウィンドウ）。
+- `v0.1.0`: Phase 1（統合パネル）＋ Phase 2（Document PiP）。内部動作確認（未公開）。
 - `v1.0.0`: ストア申請（[CONVENTIONS.md](../../CONVENTIONS.md) §10）。カテゴリ =
   Developer Tools、公開レベルは申請時に決定。
-- 以降の候補は §1「MVP に入れない」を参照。
+- 以降の候補は §1「MVP に入れない」＋ §11「今後」を参照。
 
 ---
 
