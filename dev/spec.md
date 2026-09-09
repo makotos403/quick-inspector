@@ -7,9 +7,9 @@
 - **表示名**: `Quick Inspector`（EN） / `お手軽検証ツール`（JA）
 - **フォルダ / リポジトリ**: `quick-inspector`（`github.com/makotos403/quick-inspector`, Public, `main`）
 - **形態**: Chrome 拡張（Manifest V3）
-- **状態**: v1.0.0・ストア申請準備（2026-09-10）。機能・アイコン・プロモ確定。
-  掲載文は [`dev/store-listing.md`](store-listing.md)。残りはスクショ撮影 → 提出。
-  カテゴリ = Developer Tools、公開レベル = Public。
+- **状態**: v1.0.0・提出物すべて用意（2026-09-10）。機能・アイコン・プロモ・スクショ
+  5枚×日英・提出 zip 完成。掲載文は [`dev/store-listing.md`](store-listing.md)。
+  カテゴリ = Developer Tools、公開レベル = Public。残りは Dashboard で提出のみ。
 - 元アイデア: [../../IDEAS.md](../../IDEAS.md) 「ページ解剖ピッカー拡張」
 - 構成規約: [../../CONVENTIONS.md](../../CONVENTIONS.md)
 
