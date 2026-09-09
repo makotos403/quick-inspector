@@ -4,7 +4,7 @@
  * Pure: reads the element and its computed style, returns a plain object.
  * No `chrome.*`, no DOM mutation. Unit-tested in dev/inspect.test.mjs
  * (the parts that don't need a live layout engine: countStructure, rgbToHex,
- * collapseBox).
+ * collapseBox, findMedia, youTubeThumb, bgImageUrl).
  */
 
 const KEY_STYLE_ORDER = [
@@ -56,7 +56,134 @@ export function inspect(el, win = el.ownerDocument.defaultView) {
       borderColor: colorInfo(cs.borderTopColor),
     },
     counts: countStructure(el),
+    media: findMedia(el, win),
   };
+}
+
+/**
+ * A downloadable image on or under the element: an <img>, a <video poster>, a
+ * CSS background-image, or a YouTube embed's thumbnail. Returns
+ * { kind, url, filename, fallback? } or null. Pure.
+ * @param {Element} el
+ * @param {Window} [win]
+ */
+export function findMedia(el, win = el.ownerDocument && el.ownerDocument.defaultView) {
+  const doc = el.ownerDocument;
+  const tag = el.localName;
+
+  if (tag === "img") {
+    const url = pickImgSrc(el);
+    if (url) return media("img", url, doc);
+  }
+  if (tag === "video") {
+    const poster = attr(el, "poster");
+    if (poster) return media("poster", poster, doc);
+  }
+  if (tag === "iframe") {
+    const yt = youTubeThumb(attr(el, "src"));
+    if (yt) return yt;
+  }
+
+  if (win) {
+    try {
+      const bg = bgImageUrl(win.getComputedStyle(el).backgroundImage);
+      if (bg) return media("background", bg, doc);
+    } catch {}
+  }
+
+  for (const f of all(el, "iframe")) {
+    const yt = youTubeThumb(attr(f, "src"));
+    if (yt) return yt;
+  }
+  for (const v of all(el, "video")) {
+    const poster = attr(v, "poster");
+    if (poster) return media("poster", poster, doc);
+  }
+  const imgs = all(el, "img");
+  if (
+    imgs.length &&
+    (imgs.length === 1 || ["figure", "picture", "a"].includes(tag))
+  ) {
+    const url = pickImgSrc(imgs[0]);
+    if (url) return media("img", url, doc);
+  }
+  return null;
+}
+
+/** Largest source for an <img>: currentSrc, else the widest srcset entry, else src. */
+export function pickImgSrc(img) {
+  if (img.currentSrc) return img.currentSrc;
+  const srcset = attr(img, "srcset");
+  if (srcset) {
+    const best = srcset
+      .split(",")
+      .map((s) => s.trim())
+      .map((s) => {
+        const [u, d] = s.split(/\s+/);
+        return { u, n: d ? parseFloat(d) : 1 };
+      })
+      .filter((e) => e.u)
+      .sort((a, b) => b.n - a.n)[0];
+    if (best) return best.u;
+  }
+  return attr(img, "src") || img.src || "";
+}
+
+/** YouTube watch/embed/short URL → its thumbnail image, or null. */
+export function youTubeThumb(url) {
+  if (!url) return null;
+  const res = [
+    /youtube(?:-nocookie)?\.com\/embed\/([\w-]{11})/,
+    /youtu\.be\/([\w-]{11})/,
+    /youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|v\/)([\w-]{11})/,
+  ];
+  let id = null;
+  for (const re of res) {
+    const m = re.exec(url);
+    if (m) {
+      id = m[1];
+      break;
+    }
+  }
+  if (!id) return null;
+  return {
+    kind: "youtube",
+    url: `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+    fallback: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+    filename: `${id}.jpg`,
+  };
+}
+
+/** First url(...) inside a computed background-image value, or null. */
+export function bgImageUrl(value) {
+  if (!value || value === "none") return null;
+  const m = /url\((['"]?)([^'")]+)\1\)/.exec(value);
+  return m ? m[2] : null;
+}
+
+function media(kind, url, doc) {
+  let abs = url;
+  try {
+    abs = new URL(url, (doc && doc.baseURI) || undefined).href;
+  } catch {}
+  return { kind, url: abs, filename: filenameFromUrl(abs) };
+}
+
+function filenameFromUrl(url, fallback = "image.jpg") {
+  try {
+    const seg = new URL(url).pathname.split("/").filter(Boolean).pop();
+    return seg && /\.[a-z0-9]{2,5}$/i.test(seg) ? seg : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function attr(el, name) {
+  return el.getAttribute ? el.getAttribute(name) : el[name];
+}
+
+function all(el, tag) {
+  return el.querySelectorAll ? Array.from(el.querySelectorAll(tag)) : [];
 }
 
 /**

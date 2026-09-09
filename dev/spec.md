@@ -42,12 +42,14 @@
 | CSS ルールとしてコピー | 見た目を再現する `selector { ... }` ブロックを生成してコピー |
 | 色スウォッチ | `color` / `background-color` / `border-color` を色見本つきで、クリックで HEX コピー |
 | 構造・件数 | table は N行×M列、リストは件数、同種の直下子要素の数、ネスト深さ |
+| 画像 / サムネ | `<img>` / `<video poster>` / `background-image` / YouTube 埋め込みの画像 URL を検出。新しいタブで開く / 保存（`chrome.downloads`）/ URL コピー |
+| 別ウィンドウ | `📌` で Document PiP ウィンドウに昇格（§3.4） |
 | 終了 | ESC、× ボタン、アイコン再クリック |
 
 ### MVP に入れない（v2 以降）
 
-- 画像 / サムネ取得・ダウンロード（`downloads` / `contextMenus` 権限が必要になる）
-- 別ドメイン iframe プレーヤーの URL 再構築（YouTube 等）
+- 動画の現フレームを canvas でキャプチャ（CORS 汚染の扱い）
+- Vimeo 等 YouTube 以外のプレーヤー（oembed への fetch が要る）
 - 右クリックメニューからの起動
 - full-path セレクタ / XPath⇔CSS 切替 / 選択履歴 / 複数選択の比較
 - options ページ、UI 言語の手動切替
@@ -151,23 +153,30 @@
 
 ### 3.3 パネル本体のセクション（`render.js`）
 
-`model`（§2.4）から生成。コピーはすべて `content.js` の `copy()` にコールバック。
+`model`（§2.4）から生成。`renderModel(container, model, actions)` の `actions` は
+`{ copy(text), open(url), download(url, filename) }`（すべて `content.js` 実装）。
 
   1. **title 行**: `tag#id.class`（省略）＋ `W × H`。
   2. **セレクタ**: CSS（自前・§4.2）／ XPath（自前）。行クリックでコピー。
-  3. **box model 図**: CSS で描く入れ子ボックス。margin / border / padding は
+  3. **画像**（`model.media` があるときだけ・§4.7）: プレビュー `<img>`（YouTube は
+     maxres → 失敗時 hq に `onerror` フォールバック）＋ 種別ラベル ＋ URL ＋
+     `[開く]`（`window.open`）`[保存]`（`chrome.downloads` へ message）`[URL コピー]`。
+  4. **box model 図**: CSS で描く入れ子ボックス。margin / border / padding は
      4辺の px、content は `w × h`。0 の辺は淡色表示。
-  4. **主要スタイル**（計算済み・§4.3 の固定リスト）: `key: value` の表。
+  5. **主要スタイル**（計算済み・§4.3 の固定リスト）: `key: value` の表。
      `[CSS ルールとしてコピー]` ボタン → `model.cssRule`（§4.4）をコピー。
-  5. **色**: `color` / `background-color` / `border-color` の色見本チップ＋
+  6. **色**: `color` / `background-color` / `border-color` の色見本チップ＋
      HEX（アルファがあれば `#RRGGBBAA` / それ以外 `#RRGGBB`）。チップクリックで HEX コピー。
      透明・none はチップをグレーアウト。
-  6. **構造・件数**（§4.5）: 該当するものだけ。
+  7. **構造・件数**（§4.5）: 該当するものだけ。
      - `<table>` → `N 行 × M 列`（全 `tr` / 最大セル数）
      - `<ul>` / `<ol>` → `N 項目`（直下 `<li>` 数）
      - 直下に同一タグの子が3個以上 → `N × <tag>`
      - `ネスト深さ D`（選択要素を根とした最大子孫深さ）
-- コピー時トースト: `コピーしました` / `Copied`（言語で出し分け）。
+- コピー時トースト: `コピーしました` / `Copied`。保存時は `ダウンロード中…`。
+- **保存の経路**: `chrome.downloads` は content script から呼べない →
+  `content.js` が `chrome.runtime.sendMessage({type:"qi:download", url, filename})`
+  → `background.js` が `chrome.downloads.download`。開く / コピーは message 不要。
 
 ### 3.4 Document Picture-in-Picture（`📌`）
 
@@ -251,18 +260,32 @@
 
 ### 4.6 `render.js`（描画・ロジック依存なし）
 
-- `h(tag, props, ...kids)`: 共有 hyperscript ヘルパー（`content.js` からも import）。
-- `renderModel(container, model, onCopy)`: §3.3 のセクションを `container` に生成。
+- `renderModel(container, model, actions)`: §3.3 のセクションを `container` に生成。
+  `actions = { copy, open, download }`。
 - `renderMessage(container, text)`: ヒント1行だけ表示。
-- `model` の形（シリアライズ可能・messaging で送れる）:
+- `model` の形（シリアライズ可能）:
   ```
   { header:{tag,id,classes[],text}, dims:{width,height},
     selectors:{css,xpath}, boxModel:{margin,border,padding:{top,right,bottom,left},
     content:{width,height}}, keyStyles:[{prop,value}],
     colors:{color,backgroundColor,borderColor:{value,hex,transparent}},
-    counts:{kind,rows?,cols?,items?,repeat?,depth}, cssRule:string }
+    counts:{kind,rows?,cols?,items?,repeat?,depth}, cssRule:string,
+    media:{kind,url,filename,fallback?} | null }
   ```
-- `render.js` は `chrome.i18n` のみ使用。`selectors/inspect/cssrule` は import しない。
+- 要素生成は `container.ownerDocument` 経由（`_doc`）。`selectors/inspect/cssrule` は
+  import しない。`chrome.i18n` のみ使用。
+
+### 4.7 メディア検出（`inspect.js` 内）
+
+- `findMedia(el, win) -> { kind, url, filename, fallback? } | null`。優先順:
+  1. `el` が `<img>` → `pickImgSrc`（`currentSrc` → srcset 最大 → `src`）
+  2. `el` が `<video>` → `poster` 属性
+  3. `el` が YouTube `<iframe>` → `youTubeThumb`
+  4. `background-image` の `url(...)`
+  5. 子孫の YouTube `<iframe>` → `<video poster>` → 単一 `<img>`（`figure`/`picture`/`a` は複数でも先頭）
+- `youTubeThumb(url)`: embed / `youtu.be` / `watch?v=` / `shorts` を解析 →
+  `i.ytimg.com/vi/<id>/maxresdefault.jpg`（`fallback` に `hqdefault.jpg`）。
+- URL は `new URL(url, doc.baseURI)` で絶対化。`filename` は path 末尾（拡張子付き）or `image.jpg`。
 
 ---
 
@@ -280,7 +303,7 @@
   "icons": { "16": "...", "32": "...", "48": "...", "128": "..." },
   "action": { "default_title": "__MSG_actionTitle__" },
   "background": { "service_worker": "background.js" },
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "downloads"],
   "web_accessible_resources": [
     {
       "resources": [
@@ -293,10 +316,12 @@
 }
 ```
 
-- `permissions` は `activeTab` ＋ `scripting` のみ。host 権限 / `downloads` / `contextMenus` は入れない。
-  （`activeTab` だけでは `scripting.executeScript` を呼べないため両方必要。`scripting` 単体は
-  権限警告なし。）
+- `permissions` は `activeTab` ＋ `scripting` ＋ `downloads`。host 権限 / `contextMenus` は入れない。
+  - `activeTab` だけでは `scripting.executeScript` を呼べないため両方必要。`scripting` 単体は権限警告なし。
+  - `downloads` はサムネイル保存用。権限警告は出ない（host 権限が付かないため）。
+    ストア申請の理由文: 「ユーザーが選んだ画像の URL を端末に保存するため。他の用途では使用しない」。
 - クリップボード書き込みはユーザー操作起点の `navigator.clipboard.writeText` で権限不要。
+- 「新しいタブで開く」は `window.open(url, "_blank", "noopener")` で権限不要。
 - `background` に `"type": "module"` は**付けない**。background は `executeScript` を呼ぶだけで
   他ファイルを `import` しない。ES モジュールが要るのはページ側で、`bootstrap.js` の
   動的 `import()` で読み込む（§2.1）。
@@ -312,7 +337,9 @@
 - 文言キー: `appName`, `appDesc`, `actionTitle`, `barInspect`, `barStop`,
   `panelCollapse`, `panelClose`, `pipOpen`, `pipUnavailable`, `pipDocked`,
   `hintPicking`, `hintIdle`,
-  `secSelector`, `secBox`, `secStyles`, `secColors`, `secStructure`,
+  `secSelector`, `secBox`, `secStyles`, `secColors`, `secStructure`, `secMedia`,
+  `mediaOpen`, `mediaSave`, `mediaCopy`, `mediaSaving`,
+  `labelImg`, `labelPoster`, `labelBackground`, `labelYouTube`,
   `copyRule`, `copied`, `labelCss`, `labelXpath`,
   `structTable`, `structItems`, `structRepeat`, `structDepth`
 
@@ -323,17 +350,17 @@
 ```
 quick-inspector/
 ├── manifest.json
-├── background.js          # action.onClicked → bootstrap.js を注入（classic）
+├── background.js          # action.onClicked → bootstrap.js を注入 ＋ chrome.downloads 代行（classic）
 ├── bootstrap.js           # 極小・classic。import(content.js) するだけ
-├── content.js             # 統合パネル・ピッカー・PiP 昇格・shadow DOM UI（ESM）
+├── content.js             # 統合パネル・ピッカー・PiP 昇格・保存の messaging・shadow DOM UI（ESM）
 ├── content.css            # shadow root の外殻（:host / ハイライト / パネル枠）
-├── sections.css           # 結果セクション・ボタン・トーストの共通スタイル（shadow ＆ PiP）
+├── sections.css           # 結果セクション・ボタン・画像・トーストの共通スタイル（shadow ＆ PiP）
 ├── pip.css                # PiP ウィンドウのページレイアウト
 ├── render.js              # パネル本体の DOM 生成（model → DOM。ロジック依存なし・doc 可搬）
 ├── selectors.js           # buildCssSelector / buildXPath（純粋）
-├── inspect.js             # inspect / countStructure / rgbToHex / collapseBox（純粋）
+├── inspect.js             # inspect / countStructure / findMedia / youTubeThumb …（純粋）
 ├── cssrule.js             # toCssRule（純粋）
-├── icons/ icon16.png icon32.png icon48.png icon128.png   # ※現状はプレースホルダ
+├── icons/ icon16.png icon32.png icon48.png icon128.png
 ├── _locales/
 │   ├── en/messages.json
 │   └── ja/messages.json
@@ -366,10 +393,12 @@ quick-inspector/
 ## 8. プライバシー / セキュリティ
 
 - 外部通信ゼロ。ページ内容の保存・送信なし。`chrome.storage` も未使用。
-- `activeTab` ＋ `scripting` のみ・ユーザーがアイコンをクリックしたタブ・その回だけ動作。
+- `activeTab` ＋ `scripting` ＋ `downloads`・ユーザーがアイコンをクリックしたタブ・その回だけ動作。
 - ページの DOM 変更はホスト要素1個の追加のみ。終了で撤去。
 - PiP ウィンドウの内容もローカル生成のみ（外部通信なし）。
-- PRIVACY.md にデータ収集なしを明記。
+- 画像の保存はユーザーが `[保存]` を押した URL のみ `chrome.downloads` に渡す。
+  ページの内容やユーザー行動を送信・記録しない。
+- PRIVACY.md にデータ収集なし・`downloads` の用途を明記。
 
 ---
 

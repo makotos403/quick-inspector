@@ -23,9 +23,16 @@ export class El {
     this.children = [];
     this.parentElement = null;
     this.ownerDocument = null;
+    this._attrs = {};
   }
   get className() {
     return this.classList.join(" ");
+  }
+  getAttribute(name) {
+    return name in this._attrs ? this._attrs[name] : null;
+  }
+  setAttribute(name, value) {
+    this._attrs[name] = String(value);
   }
   get classNameList() {
     return this.classList;
@@ -53,6 +60,9 @@ export class El {
     };
     walk(this);
     return out;
+  }
+  querySelector(selector) {
+    return this.querySelectorAll(selector)[0] || null;
   }
   getBoundingClientRect() {
     return { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
@@ -159,11 +169,14 @@ function matchCompound(node, compound) {
   return true;
 }
 
-/** Build a tree from a compact spec: el("div", { id, class: "a b" }, ...children) */
+/** Build a tree from a compact spec: el("div", { id, class: "a b", src }, ...children) */
 export function el(tag, props = {}, ...kids) {
   const node = new El(tag);
-  if (props.id) node.id = props.id;
-  if (props.class) node.classList.push(...props.class.split(/\s+/));
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "id") node.id = v;
+    else if (k === "class") node.classList.push(...v.split(/\s+/));
+    else node.setAttribute(k, v);
+  }
   node.append(...kids);
   return node;
 }

@@ -22,7 +22,9 @@
 - **Key styles**: ~20 curated computed properties, plus "Copy as CSS rule"
 - **Colors**: `color` / `background` / `border-color` swatches, click to copy hex
 - **Structure**: table rows × cols, list item counts, repeated children, nesting depth
-- `activeTab` + `scripting` only — no host permission, no network
+- **Image**: for an `<img>`, `<video poster>`, CSS `background-image`, or a
+  YouTube embed — open the thumbnail in a new tab, save it, or copy its URL
+- `activeTab` + `scripting` + `downloads` only — no host permission, no network
   ([PRIVACY.md](PRIVACY.md))
 
 ---
@@ -37,6 +39,8 @@
 - **主要スタイル**: 計算済みプロパティ約20項目、「CSS ルールとしてコピー」つき
 - **色**: `color` / `background` / `border-color` の色見本、クリックで HEX コピー
 - **構造**: table の行×列、リストの件数、繰り返し子要素、ネスト深さ
+- **画像**: `<img>`・`<video poster>`・CSS `background-image`・YouTube 埋め込みの
+  サムネイルを、新しいタブで開く / 保存 / URL コピー
 - 権限は `activeTab` ＋ `scripting` のみ。host 権限なし・外部通信なし
 
 ## Install (development) / インストール（開発版）
@@ -54,11 +58,12 @@
 | `manifest.json` | MV3 manifest. Permissions: `activeTab` + `scripting` only |
 | `background.js` | Service worker. On toolbar click, inject `bootstrap.js` |
 | `bootstrap.js` | Tiny classic script; dynamic-imports `content.js` as a module |
+| `background.js` | Injects `bootstrap.js` on click; runs `chrome.downloads` for the panel |
 | `content.js` | In-page UI: the unified panel, the picker, PiP promotion, closed shadow DOM |
 | `content.css` / `sections.css` / `pip.css` | Shadow-panel shell / shared section styling / PiP-window layout (all fetched and injected) |
 | `render.js` | Builds the panel body from a plain model — no logic deps, document-portable |
 | `selectors.js` | `buildCssSelector` / `buildXPath` — pure |
-| `inspect.js` | `inspect` / `countStructure` — pure |
+| `inspect.js` | `inspect` / `countStructure` / `findMedia` / `youTubeThumb` — pure |
 | `cssrule.js` | `toCssRule` — pure |
 | `_locales/{en,ja}/messages.json` | Store name / description + UI strings (`chrome.i18n`) |
 | `dev/` | Not shipped: spec, tests, icon master. Excluded from the store zip |
@@ -66,9 +71,7 @@
 ## Development / 開発
 
 ```
-node dev/selectors.test.mjs
-node dev/inspect.test.mjs
-node dev/cssrule.test.mjs
+node --test "dev/*.test.mjs"
 ```
 
 Design notes and scope: [dev/spec.md](dev/spec.md).
@@ -79,6 +82,7 @@ Design notes and scope: [dev/spec.md](dev/spec.md).
 |---|---|
 | `activeTab` | Act only on the tab whose toolbar icon you clicked |
 | `scripting` | Inject the overlay into that tab (required alongside `activeTab`; no permission warning on its own) |
+| `downloads` | Save a thumbnail when you press **Save** — only the URL you picked |
 
 No host permission. No data leaves the browser. / host 権限なし。データは一切外部に出ません。
 

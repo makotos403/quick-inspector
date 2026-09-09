@@ -50,6 +50,33 @@
   "secStructure": {
     "message": "Structure"
   },
+  "secMedia": {
+    "message": "Image"
+  },
+  "mediaOpen": {
+    "message": "Open"
+  },
+  "mediaSave": {
+    "message": "Save"
+  },
+  "mediaCopy": {
+    "message": "Copy URL"
+  },
+  "mediaSaving": {
+    "message": "Downloading…"
+  },
+  "labelImg": {
+    "message": "img"
+  },
+  "labelPoster": {
+    "message": "poster"
+  },
+  "labelBackground": {
+    "message": "background"
+  },
+  "labelYouTube": {
+    "message": "YouTube"
+  },
   "copyRule": {
     "message": "Copy as CSS rule"
   },

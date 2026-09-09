@@ -16,7 +16,10 @@
  *   colors:  { color, backgroundColor, borderColor: { value, hex, transparent } },
  *   counts:  { kind, rows?, cols?, items?, repeat?: {tag,count}, depth },
  *   cssRule: string,
+ *   media:   { kind, url, filename, fallback? } | null,
  * }
+ *
+ * `actions` = { copy(text), open(url), download(url, filename) }.
  */
 
 const t = (key, subs) => chrome.i18n.getMessage(key, subs) || key;
@@ -48,21 +51,25 @@ export function renderMessage(container, text) {
  * Replace `container`'s content with the full inspection view.
  * @param {Element} container
  * @param {object} model
- * @param {(text: string) => void} onCopy
+ * @param {{copy: Function, open: Function, download: Function}} actions
  */
-export function renderModel(container, model, onCopy) {
+export function renderModel(container, model, actions) {
   _doc = container.ownerDocument;
-  container.replaceChildren(
+  const kids = [
     titleRow(model),
     section(t("secSelector"), [
-      copyRow(t("labelCss"), model.selectors.css, onCopy),
-      copyRow(t("labelXpath"), model.selectors.xpath, onCopy),
+      copyRow(t("labelCss"), model.selectors.css, actions.copy),
+      copyRow(t("labelXpath"), model.selectors.xpath, actions.copy),
     ]),
+  ];
+  if (model.media) kids.push(section(t("secMedia"), [mediaView(model.media, actions)]));
+  kids.push(
     section(t("secBox"), [boxModelView(model.boxModel)]),
-    section(t("secStyles"), [stylesView(model, onCopy)]),
-    section(t("secColors"), [colorsView(model.colors, onCopy)]),
+    section(t("secStyles"), [stylesView(model, actions.copy)]),
+    section(t("secColors"), [colorsView(model.colors, actions.copy)]),
     section(t("secStructure"), [structureView(model.counts)]),
   );
+  container.replaceChildren(...kids);
 }
 
 // --- pieces ----------------------------------------------------------------
@@ -160,6 +167,44 @@ function colorsView(colors, onCopy) {
     chip("color", colors.color),
     chip("background", colors.backgroundColor),
     chip("border", colors.borderColor),
+  );
+}
+
+const MEDIA_KIND = {
+  img: "labelImg",
+  poster: "labelPoster",
+  background: "labelBackground",
+  youtube: "labelYouTube",
+};
+
+function mediaView(m, actions) {
+  const preview = h("img", { class: "qi-media__img", src: m.url, alt: "", loading: "lazy" });
+  if (m.fallback) {
+    let swapped = false;
+    preview.addEventListener("error", () => {
+      if (!swapped) {
+        swapped = true;
+        preview.src = m.fallback;
+      }
+    });
+  }
+  return h(
+    "div",
+    { class: "qi-media" },
+    preview,
+    h(
+      "div",
+      { class: "qi-media__meta" },
+      h("span", { class: "qi-media__kind", text: t(MEDIA_KIND[m.kind] || "labelImg") }),
+      h("code", { class: "qi-media__url", title: m.url, text: m.url }),
+    ),
+    h(
+      "div",
+      { class: "qi-media__actions" },
+      h("button", { class: "qi-btn", text: t("mediaOpen"), onclick: () => actions.open(m.url) }),
+      h("button", { class: "qi-btn", text: t("mediaSave"), onclick: () => actions.download(m.url, m.filename) }),
+      h("button", { class: "qi-btn", text: t("mediaCopy"), onclick: () => actions.copy(m.url) }),
+    ),
   );
 }
 

@@ -33,6 +33,7 @@ removed.
 |---|---|
 | `activeTab` | Limit all activity to the tab whose icon you clicked |
 | `scripting` | Inject the inspector overlay into that tab (required alongside `activeTab`) |
+| `downloads` | Save an image to your computer when you press **Save** on a thumbnail. Only the URL you chose is downloaded; nothing else. |
 
 No host permissions are requested. The extension is used for a single purpose —
 inspecting an element on the current page — and its permissions are not used for
@@ -72,6 +73,7 @@ anything else.
 |---|---|
 | `activeTab` | 操作をアイコンをクリックしたタブだけに限定するため |
 | `scripting` | そのタブに検証オーバーレイを注入するため（`activeTab` と対で必要） |
+| `downloads` | サムネイルの「保存」を押したとき、その画像を端末に保存するため。ダウンロードするのは選んだ URL のみです。 |
 
 host（ホスト）権限は要求しません。本拡張機能は「現在のページの要素を調べる」
 という単一目的にのみ権限を使用します。

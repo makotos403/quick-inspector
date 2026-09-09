@@ -50,6 +50,33 @@
   "secStructure": {
     "message": "構造"
   },
+  "secMedia": {
+    "message": "画像"
+  },
+  "mediaOpen": {
+    "message": "開く"
+  },
+  "mediaSave": {
+    "message": "保存"
+  },
+  "mediaCopy": {
+    "message": "URL コピー"
+  },
+  "mediaSaving": {
+    "message": "ダウンロード中…"
+  },
+  "labelImg": {
+    "message": "img"
+  },
+  "labelPoster": {
+    "message": "poster"
+  },
+  "labelBackground": {
+    "message": "背景画像"
+  },
+  "labelYouTube": {
+    "message": "YouTube"
+  },
   "copyRule": {
     "message": "CSS ルールとしてコピー"
   },

@@ -199,14 +199,28 @@ function clampPanel() {
   });
 }
 
+const ACTIONS = { copy, open: openUrl, download: downloadUrl };
+
 function renderBody() {
   const target = S.pip ? S.nodes.pipBody : S.expanded ? S.nodes.body : null;
   if (!target) return;
   if (S.selected && S.model) {
-    renderModel(target, S.model, copy);
+    renderModel(target, S.model, ACTIONS);
   } else {
     renderMessage(target, S.picking ? t("hintPicking") : t("hintIdle"));
   }
+}
+
+function openUrl(url) {
+  if (url) window.open(url, "_blank", "noopener");
+}
+
+function downloadUrl(url, filename) {
+  if (!url) return;
+  Promise.resolve(chrome.runtime.sendMessage({ type: "qi:download", url, filename })).catch(
+    () => {},
+  );
+  toast(t("mediaSaving"));
 }
 
 // --- Document Picture-in-Picture --------------------------------------
@@ -494,14 +508,14 @@ async function copy(text) {
   toast();
 }
 
-function toast() {
+function toast(message = t("copied")) {
   const container = S.pip ? S.pip.document.body : S.root;
   let el = container.querySelector(".qi-toast");
   if (!el) {
     el = (S.pip ? mk(S.pip.document) : h)("div", { class: "qi-toast" });
     container.append(el);
   }
-  el.textContent = t("copied");
+  el.textContent = message;
   el.classList.add("qi-toast--on");
   clearTimeout(el._timer);
   el._timer = setTimeout(() => el.classList.remove("qi-toast--on"), 1200);

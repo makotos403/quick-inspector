@@ -1,16 +1,17 @@
 /**
  * background.js — service worker (classic script).
  *
- * Sole job: when the toolbar icon is clicked, inject `bootstrap.js` into the
- * active tab. `bootstrap.js` then loads `content.js` as an ES module, which
- * builds the UI (or tears it down if already present).
+ * Two jobs:
+ *   1. On toolbar click, inject `bootstrap.js` into the active tab, which loads
+ *      `content.js` as an ES module (it builds the UI, or tears it down).
+ *   2. Run `chrome.downloads.download` on behalf of `content.js` (the API is
+ *      not exposed to content scripts) when the user saves a thumbnail.
  *
- * Permissions: "activeTab" + "scripting". The pair is required — "activeTab"
- * alone does not allow `scripting.executeScript`. No host permission is needed
- * because injection only happens on the tab the user explicitly acted on.
+ * Permissions: "activeTab" + "scripting" (the pair is required — "activeTab"
+ * alone does not allow `scripting.executeScript`) and "downloads". No host
+ * permission: injection only touches the tab the user acted on.
  *
  * No state is kept here (MV3 workers are short-lived; see CONVENTIONS.md §7).
- * The on/off toggle lives in `content.js`.
  */
 
 const INJECTABLE = /^(https?|file):/i;
@@ -24,5 +25,11 @@ chrome.action.onClicked.addListener(async (tab) => {
     });
   } catch (err) {
     console.error("[Quick Inspector] injection failed:", err);
+  }
+});
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg && msg.type === "qi:download" && /^(https?|data|blob):/i.test(msg.url || "")) {
+    chrome.downloads.download({ url: msg.url, filename: msg.filename || undefined });
   }
 });

@@ -233,6 +233,50 @@
   color: #334155;
 }
 
+/* --- media / thumbnail ------------------------------------- */
+
+.qi-media {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qi-media__img {
+  width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+}
+.qi-media__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.qi-media__kind {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+.qi-media__url {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qi-media__actions {
+  display: flex;
+  gap: 6px;
+}
+.qi-media__actions .qi-btn {
+  flex: 1;
+  padding: 6px 8px;
+}
+
 /* --- toast ------------------------------------------------- */
 
 .qi-toast {
