@@ -134,23 +134,27 @@ Dashboard「プライバシー」タブで各権限に入力（英語）。
 
 ---
 
-## 8. スクリーンショット計画（1280×800 PNG・24bit・アルファなし・日英別セット）
+## 8. スクリーンショット（1280×800 PNG・24bit・アルファなし・日英別セット）— 撮影済み
 
-撮影原本 → `dev/store/raw/ss<NN>_<lang>.png` ／ アップロード用 → `dev/store/<n>-<slug>-<lang>.png`
-（`dev/caption_shots.py` で帯を焼く。帯 濃色 `#1E3A8A` ／ アクセント線 `#2563eb` ／ 文字 `#F8FAFF`）。
+撮影原本 → `dev/store/raw/ss0[1-5]_{ja,en}.png` ／ アップロード用 →
+`dev/store/[1-5]-<slug>-{ja,en}.png`（`dev/caption_shots.py` が帯を焼く。
+帯 `#1E3A8A` ／ アクセント線 `#2563eb` ／ 文字 `#F8FAFF`）。
 
-ブラウザ最大化・ネイティブ 1280×800。UI 言語を切り替えて日英で別撮り。
+背景は **Wikimedia Commons メインページ**（`commons.wikimedia.org` / 日本語表示）で統一。
+中立・メディア主題・他社サービスロゴなし。ブラウザ最大化・ネイティブ 1280×800。
+日本語版は拡張 UI が日本語、英語版は英語。
 
-| # | slug | 画面 | 背景ページ（中立・他社ロゴ小） | キャプション JA / EN |
-|---|---|---|---|---|
-| 1 | `panel` | パネル展開＋要素ハイライト＋セレクタ／box model | MDN `<table>` 記事（`developer.mozilla.org/{ja,en-US}/docs/Web/HTML/Element/table`） | DevTools を開かず要素を検証 / Inspect an element without opening DevTools |
-| 2 | `pip` | 📌 で PiP ウィンドウがページの上に浮遊（ページは覆われない） | 同上 | 最前面ウィンドウに切り出し / Float the panel on top of everything |
-| 3 | `copy` | 色スウォッチ＋「CSS ルールとしてコピー」＋トースト | MDN のコールアウト（Note/Warning がある任意の記事） | 色や CSS をワンクリックでコピー / Copy colors and CSS in one click |
-| 4 | `media` | 画像セクション（プレビュー＋開く／保存／URL コピー） | MDN `<video>` 記事（ページ内に実サンプル動画＋poster） | 画像・サムネを開く・保存 / Open or save an image or thumbnail |
-| 5 | `handle` | 折りたたみハンドルだけが右上に浮いた状態 | Wikipedia「Cascading Style Sheets」 | 邪魔なときは小さくたたむ / Fold it away to a small handle |
+| # | slug | 画面 | キャプション JA / EN |
+|---|---|---|---|
+| 1 | `panel` | パネル展開＋見出しをハイライト＋セレクタ／box model／主要スタイル | DevTools を開かず、要素をその場で検証 / Inspect any element on the spot — no DevTools |
+| 2 | `pip` | 📌 で切り出した PiP ウィンドウ＋ページ側は小ハンドル | 最前面に浮くウィンドウに切り出し / Pop it out into an always-on-top window |
+| 3 | `copy` | 色スウォッチ＋構造＋「CSS ルールとしてコピー」 | 色・box model・CSS をワンクリックでコピー / Copy colors, the box model, and CSS in one click |
+| 4 | `media` | 画像を選択 → プレビュー＋開く／保存／URL コピー | 画像・サムネイルを 開く / 保存 / URL コピー / Open, save, or copy an image or thumbnail |
+| 5 | `handle` | 折りたたみハンドルだけが右上に（赤枠で強調） | 使わないときは小さくたたむ / Fold it away to a small handle |
 
-- プロモタイル（小・440×280）: `dev/store/promo-small.png`（`dev/make_promo.py` 生成・全言語共通）。
+- プロモタイル（小・440×280）: `dev/store/promo-small.png`（全言語共通）。
 - マーキータイル（1400×560）: 未作成。不要なら省略。
+- 差し込み用の YouTube サムネ再構築カットは任意（自分のブログの埋め込みで撮れる）。
 
 ---
 
