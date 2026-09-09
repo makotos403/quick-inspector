@@ -335,15 +335,10 @@ function select(el) {
 }
 
 function buildModel(el) {
-  const data = inspect(el, window);
+  const data = inspect(el, window); // { header, dims, boxModel, keyStyles, colors, counts, media }
   const css = buildCssSelector(el, document);
   return {
-    header: data.header,
-    dims: data.dims,
-    boxModel: data.boxModel,
-    keyStyles: data.keyStyles,
-    colors: data.colors,
-    counts: data.counts,
+    ...data,
     selectors: { css, xpath: buildXPath(el, document) },
     cssRule: toCssRule(css, data.keyStyles),
   };
