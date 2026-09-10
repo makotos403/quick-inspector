@@ -374,12 +374,12 @@ quick-inspector/
     ├── asset-prompts.md   # アイコン・プロモの経緯とパレット
     ├── minidom.mjs        # テスト用の最小 DOM（jsdom 不使用）
     ├── icon_src.png       # 512px 透過マスター（build_icons.py が生成）
-    ├── build_icons.py     # </> を PIL 描画 → icon_src.png ＋ icons/ ＋ store 128
+    ├── build_icons.py     # </> を PIL 描画 → icon_src.png ＋ icons/icon{16,32,48,128}.png
     ├── make_promo.py      # icon_src.png ＋ ワードマーク → store/promo-small.png
     ├── selectors.test.mjs
     ├── inspect.test.mjs
     ├── cssrule.test.mjs
-    └── store/             # 提出画像（promo-small.png / icon-store-128.png / raw に撮影原本）
+    └── store/             # 提出画像（[1-5]-<slug>-{ja,en}.png / promo-small.png / raw に撮影原本）
 ```
 
 - 共有モジュール4個（`render` `selectors` `inspect` `cssrule`）→ フラット維持（§3: 5個以上で `lib/`）。
@@ -411,8 +411,9 @@ quick-inspector/
   経緯は git 履歴（2026-09-09 前後）。
 - ブランド: 主色 `#2563eb` / 濃色 `#1E3A8A` / タイル地 `#EEF3FC` / シンボル `#F8FAFF`。
 - **`dev/build_icons.py`**: `</>` を PIL で直接描画（画像ファイル非依存・サイズ別に調整可）
-  → `dev/icon_src.png` ＋ `icons/icon{16,32,48,128}.png` ＋
-  `dev/store/icon-store-128.png`（不透明・掲載用）。
+  → `dev/icon_src.png` ＋ `icons/icon{16,32,48,128}.png`。
+- **ストア掲載アイコンも `icons/icon128.png`（透過のまま）**。ストアのカードはライト/ダーク
+  両テーマなので、不透明タイルにするとダークで箱が浮く。
 - **`dev/make_promo.py`**: `dev/icon_src.png` ＋ ワードマークを PIL 合成 →
   `dev/store/promo-small.png`（440×280・24bit）。スペルと一貫性が確実。
 

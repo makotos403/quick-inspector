@@ -9,7 +9,7 @@ Artwork for Quick Inspector. Follows [CONVENTIONS.md](../../CONVENTIONS.md)
 |---|---|---|
 | Accent | `#2563eb` | icon ground, UI accent (`sections.css`) |
 | Accent dark | `#1E3A8A` | promo-tile wordmark |
-| Light ground | `#EEF3FC` | promo-tile background, opaque store-128 backing |
+| Light ground | `#EEF3FC` | promo-tile background |
 | Symbol light | `#F8FAFF` | the `</>` glyph |
 
 **Motif**: a bold white `</>` on a blue rounded square. Chosen for 16px
@@ -29,8 +29,10 @@ so stroke weight is tunable per size and nothing depends on an image file:
 python dev/build_icons.py
 # → dev/icon_src.png (512, transparent master)
 #   icons/icon{16,32,48,128}.png
-#   dev/store/icon-store-128.png  (opaque, for the Web Store listing)
 ```
+
+`icons/icon128.png` is also the Web Store listing icon — transparent, so it
+adapts to the store's light and dark cards (an opaque tile boxes in on dark).
 
 If the mark ever needs a redraw, edit the geometry constants in `draw_master()`
 (`w` stroke, `ax/ay` chevron spread, `tip`, `sx/sy` slash).

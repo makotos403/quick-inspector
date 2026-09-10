@@ -6,6 +6,7 @@
 - **カテゴリ**: Developer Tools
 - **言語**: English / 日本語（既定ロケール: `en`）
 - **バージョン**: `1.0.0`
+- **ストアアイコン**: `icons/icon128.png`（manifest と同一・透過のまま。ライト/ダーク両カードに馴染む）
 - **プライバシーポリシー URL**: `https://github.com/makotos403/quick-inspector/blob/main/PRIVACY.md`
 - 開発者アカウント: `hanpen403@gmail.com`（登録済み・追加費用なし。CONVENTIONS §10）
 
@@ -180,7 +181,7 @@ powershell -ExecutionPolicy Bypass -File dev/pack.ps1
 2. zip 作成 → Dashboard「新しいアイテム」でアップロード
 3. 「ストアの掲載情報」「プライバシー」「配布」タブを本ファイルからコピペ
    - プライバシーポリシー URL は上記（`main` とファイル名は変えない）
-4. スクリーンショット（§8）とアイコン（`dev/store/icon-store-128.png`）とプロモタイルをアップロード
+4. スクリーンショット（§8）とストアアイコン（`icons/icon128.png`・透過のまま可）とプロモタイルをアップロード
 5. 「審査用に送信」→ 結果はメール。MV3・host 権限なしなので 1〜3 日の見込み
 
 ### 既知の制約（v1.1 で対応）

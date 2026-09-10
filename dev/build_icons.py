@@ -1,11 +1,14 @@
-"""Draw the toolbar / store icons: a bold white ``</>`` on a blue rounded
+"""Draw the toolbar / store icon: a bold white ``</>`` on a blue rounded
 square. Code-drawn (no Gemini dependency) so the stroke weight stays legible
 at 16px and every size is reproducible.
 
 Outputs:
     dev/icon_src.png            512, transparent master
     icons/icon{16,32,48,128}.png
-    dev/store/icon-store-128.png   opaque, for the Web Store listing (§10.3)
+
+`icons/icon128.png` (transparent) is also the Web Store listing icon — it
+adapts to the store's light and dark card themes; an opaque tile would show
+a box on dark.
 
 Run: python dev/build_icons.py
 """
@@ -18,11 +21,9 @@ DEV = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(DEV)
 ICONS = os.path.join(ROOT, "icons")
 MASTER = os.path.join(DEV, "icon_src.png")
-STORE_128 = os.path.join(DEV, "store", "icon-store-128.png")
 
 BLUE = (37, 99, 235, 255)  # #2563eb
 WHITE = (248, 250, 255, 255)  # #F8FAFF
-GROUND = (238, 243, 252)  # #EEF3FC (store tile behind the opaque 128)
 SS = 8  # supersample
 
 
@@ -58,21 +59,12 @@ def draw_master():
 
 def main():
     os.makedirs(ICONS, exist_ok=True)
-    os.makedirs(os.path.dirname(STORE_128), exist_ok=True)
-
     master = draw_master()
     master.save(MASTER)
     print("wrote", MASTER)
-
     for px in (128, 48, 32, 16):
         master.resize((px, px), Image.LANCZOS).save(os.path.join(ICONS, f"icon{px}.png"))
     print("wrote icons/icon{16,32,48,128}.png")
-
-    store = Image.new("RGB", (128, 128), GROUND)
-    m128 = master.resize((128, 128), Image.LANCZOS)
-    store.paste(m128, (0, 0), m128)
-    store.save(STORE_128)
-    print("wrote", STORE_128)
 
 
 if __name__ == "__main__":
