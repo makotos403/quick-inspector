@@ -8,6 +8,9 @@
 > セレクタ・box model・主要スタイル・色・構造の件数を確認する Chrome 拡張機能
 > （Manifest V3）。日本語・英語対応。
 
+**🔍 Chrome ウェブストアで公開中 / Available on the Chrome Web Store**
+→ https://chromewebstore.google.com/detail/kjeaflejonobjboohllflejabgfcfoch
+
 ---
 
 ## Features / 特長
