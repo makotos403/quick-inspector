@@ -110,10 +110,12 @@
 }
 
 .qi-panel--collapsed .qi-panel__body,
+.qi-panel--collapsed .qi-rate,
 .qi-panel--collapsed .qi-head-btn,
 .qi-panel--collapsed .qi-inspect,
 .qi-panel--collapsed .qi-spacer,
 .qi-panel--docked .qi-panel__body,
+.qi-panel--docked .qi-rate,
 .qi-panel--docked .qi-head-btn,
 .qi-panel--docked .qi-inspect,
 .qi-panel--docked .qi-spacer {

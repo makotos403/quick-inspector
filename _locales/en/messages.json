@@ -114,5 +114,8 @@
     "placeholders": {
       "depth": { "content": "$1" }
     }
+  },
+  "rateLink": {
+    "message": "★ Rate / review on the Chrome Web Store"
   }
 }

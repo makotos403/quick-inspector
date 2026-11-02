@@ -114,5 +114,8 @@
     "placeholders": {
       "depth": { "content": "$1" }
     }
+  },
+  "rateLink": {
+    "message": "★ ストアで評価・レビューを書く"
   }
 }

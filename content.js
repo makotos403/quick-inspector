@@ -17,6 +17,8 @@ import { toCssRule } from "./cssrule.js";
 import { renderModel, renderMessage } from "./render.js";
 
 const HOST_ID = "quick-inspector-host";
+const REVIEW_URL =
+  "https://chromewebstore.google.com/detail/kjeaflejonobjboohllflejabgfcfoch/reviews";
 const t = (key, subs) => chrome.i18n.getMessage(key, subs) || key;
 
 /** hyperscript helper bound to a specific document (page or PiP). */
@@ -34,6 +36,14 @@ const mk =
     return el;
   };
 const h = mk(document);
+
+/** Quiet, always-visible link to the store review page (CONVENTIONS.md §11). */
+const rateLink = (make) =>
+  make(
+    "div",
+    { class: "qi-rate" },
+    make("a", { href: REVIEW_URL, target: "_blank", rel: "noopener noreferrer", text: t("rateLink") }),
+  );
 
 let S = null;
 
@@ -159,7 +169,7 @@ function buildPanel(root) {
     closeBtn,
   );
   const body = h("div", { class: "qi-panel__body" });
-  const panel = h("div", { class: "qi-panel" }, head, body);
+  const panel = h("div", { class: "qi-panel" }, head, body, rateLink(h));
   root.append(panel);
 
   S.nodes.panel = panel;
@@ -263,6 +273,7 @@ async function promoteToPip() {
         ph("span", { class: "qi-spacer" }),
       ),
       pipBody,
+      rateLink(ph),
     ),
   );
 
